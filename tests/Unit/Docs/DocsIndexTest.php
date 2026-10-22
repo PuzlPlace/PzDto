@@ -24,6 +24,7 @@ final class DocsIndexTest extends TestCase
         'conversao',
         'aninhamento',
         'rastreamento',
+        'eloquent',
         'validacoes',
         'migracao',
         'diferencas',

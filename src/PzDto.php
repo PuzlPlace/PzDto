@@ -12,6 +12,7 @@ use Puzl\PzDto\Support\CastError;
 use Puzl\PzDto\Support\ClassMetadata;
 use Puzl\PzDto\Support\Comparator;
 use Puzl\PzDto\Support\Messages;
+use Puzl\PzDto\Support\ModelReader;
 
 /**
  * Base dos DTOs: basta estender (direto ou por uma base do projeto).
@@ -57,10 +58,13 @@ abstract class PzDto implements \JsonSerializable
      */
     public static function from(mixed $values, ?array $destructuring = null): static
     {
+        $source = $values;
         $values = self::normalizeInput($values);
 
         foreach ($destructuring ?? [] as $key) {
-            $nested = $values[$key] ?? null;
+            $nested = ModelReader::isModel($source) && ! array_key_exists($key, $values)
+                ? ModelReader::readKey($source, $key)[1]
+                : ($values[$key] ?? null);
             if (is_object($nested)) {
                 $nested = self::normalizeInput($nested);
             }
@@ -70,6 +74,41 @@ abstract class PzDto implements \JsonSerializable
         }
 
         return static::create($values);
+    }
+
+    /**
+     * Lista de DTOs a partir de array, Collection, LazyCollection ou paginator
+     * (de Models, arrays, objetos…). As chaves são preservadas.
+     *
+     * Os erros de validação de todos os itens vêm juntos, com o índice no
+     * caminho: `['0.name' => [...], '3.qty' => [...]]`.
+     *
+     * @param iterable<mixed> $items
+     *
+     * @return array<int|string, static>
+     *
+     * @throws PzDtoValidationException
+     */
+    public static function collect(iterable $items): array
+    {
+        $result = [];
+        $errors = [];
+
+        foreach ($items as $key => $item) {
+            try {
+                $result[$key] = static::from($item);
+            } catch (PzDtoValidationException $exception) {
+                foreach ($exception->errors() as $path => $messages) {
+                    $errors[Caster::join((string) $key, (string) $path)] = $messages;
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            throw new PzDtoValidationException($errors, static::class);
+        }
+
+        return $result;
     }
 
     /**
@@ -210,6 +249,8 @@ abstract class PzDto implements \JsonSerializable
     /**
      * Propriedades públicas como array (enums viram o value; DTOs aninhados, arrays).
      *
+     * Datas saem como string `Y-m-d H:i:s` (fuso do próprio objeto).
+     *
      * Sempre traz todas as públicas. Campo nunca preenchido (ex.: `new` com atribuição
      * parcial) sai com o que o create() daria sem a chave: default; null se nullable;
      * senão o zero do tipo (0, 0.0, '', false, [], DTO vazio); enum/data → null.
@@ -235,7 +276,7 @@ abstract class PzDto implements \JsonSerializable
         $data = [];
 
         foreach ($metadata->publicNames as $name) {
-            $data[$name] = $this->currentValue($metadata, $name);
+            $data[$name] = self::exportValue($this->currentValue($metadata, $name));
         }
 
         return $data;
@@ -455,6 +496,22 @@ abstract class PzDto implements \JsonSerializable
         return $initialized ? $value : Caster::absent($metadata->properties[$name]);
     }
 
+    /**
+     * Datas saem como `Y-m-d H:i:s` no fuso do próprio objeto (pronto para
+     * `$model->fill()`), e não como `{date, timezone_type, timezone}`.
+     */
+    private static function exportValue(mixed $value): mixed
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+        if (is_array($value)) {
+            return array_map(self::exportValue(...), $value);
+        }
+
+        return $value;
+    }
+
     private static function syncNested(mixed $value): void
     {
         if ($value instanceof self) {
@@ -474,7 +531,7 @@ abstract class PzDto implements \JsonSerializable
         $metadata = ClassMetadata::for(static::class);
         $data = [];
         foreach ($names as $name) {
-            $data[$name] = $this->currentValue($metadata, $name);
+            $data[$name] = self::exportValue($this->currentValue($metadata, $name));
         }
 
         return json_decode(json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
@@ -533,6 +590,10 @@ abstract class PzDto implements \JsonSerializable
             }
 
             return $public;
+        }
+
+        if (ModelReader::isModel($values)) {
+            return ModelReader::read($values, ClassMetadata::for(static::class));
         }
 
         if (is_object($values)) {

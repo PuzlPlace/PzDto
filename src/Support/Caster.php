@@ -435,7 +435,11 @@ final class Caster
      */
     private static function castList(mixed $value, PropertyMetadata $property, callable $castItem): array
     {
-        if (is_object($value) && ! $value instanceof \UnitEnum) {
+        // Collection/paginator de Models: itera em vez de toArray(), para cada item
+        // continuar sendo Model (lida campo a campo, datas no fuso da aplicação).
+        if ($value instanceof \Traversable) {
+            $value = iterator_to_array($value);
+        } elseif (is_object($value) && ! $value instanceof \UnitEnum) {
             $value = self::toArray($value);
         }
         if (! is_array($value)) {

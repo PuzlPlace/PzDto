@@ -440,6 +440,7 @@
       <a href="#aninhamento">DTOs e enums aninhados</a>
       <a href="#entrada-saida">Entrada e saída</a>
       <a href="#rastreamento">Rastreamento (dirty)</a>
+      <a href="#eloquent">Laravel / Eloquent</a>
     </div>
 
     <div class="nav-group">
@@ -519,7 +520,7 @@
         </thead>
         <tbody>
           <tr><td>PHP ^8.1</td><td>Sim</td><td>Testado em 8.2 / 8.3</td></tr>
-          <tr><td>Laravel</td><td>Não</td><td>Funciona em qualquer versão; não há Service Provider</td></tr>
+          <tr><td>Laravel</td><td>Não</td><td>Sem Service Provider. Com Laravel, reconhece Model, Collection e paginator (testado no 13; APIs usadas existem desde o 10)</td></tr>
         </tbody>
       </table>
 
@@ -622,14 +623,15 @@ FinanceCreateDto::from([...]); <span class="cmt">// instância de FinanceCreateD
     <section id="entrada-saida">
       <h2>Entrada e saída</h2>
 <pre><code>Dto::from([<span class="str">'a'</span> => 1]);
-Dto::from($model);                  <span class="cmt">// usa $model->toArray()</span>
+Dto::from($model);                  <span class="cmt">// Eloquent: campo a campo (ver Laravel / Eloquent)</span>
+Dto::collect($models);              <span class="cmt">// lista de DTOs</span>
 Dto::from((object) [<span class="str">'a'</span> => 1]);
 Dto::from($outroDto);               <span class="cmt">// propriedades públicas, preservando objetos</span>
 Dto::from(<span class="str">'{"a":1}'</span>);             <span class="cmt">// JSON inválido lança PzDtoException</span>
 Dto::from($dados, [<span class="str">'address'</span>]);    <span class="cmt">// mescla $dados['address'] na raiz</span>
 Dto::create([<span class="str">'a'</span> => 1]);
 
-$dto->toArray();                    <span class="cmt">// mesmo formato da trait (enum → value)</span>
+$dto->toArray();                    <span class="cmt">// enum → value, data → "Y-m-d H:i:s"</span>
 $dto->toJson();                     <span class="cmt">// = json_encode($dto)</span>
 $dto->assertValid();                <span class="cmt">// revalida após alterar propriedades</span></code></pre>
       <h3>Campos não preenchidos no toArray()</h3>
@@ -713,6 +715,48 @@ $dto->syncOriginal();             <span class="cmt">// estado atual vira o origi
       <div class="callout callout-info">
         <div class="callout-title">DateTime mutável</div>
         A cópia do original é rasa: <code>$dto->date->modify('+1 day')</code> em <code>DateTime</code> mutável não é detectado. Use <code>DateTimeImmutable</code> (ou atribua uma nova instância).
+      </div>
+    </section>
+
+    <section id="eloquent">
+      <h2>Laravel / Eloquent</h2>
+      <p>O pacote não depende do Laravel, mas reconhece Eloquent Model, Collection e paginator quando estão instalados.</p>
+
+      <h3>Model → DTO</h3>
+<pre><code>$dto = OrderDto::from($order);                 <span class="cmt">// uma Model</span>
+$dtos = OrderDto::collect(Order::with(<span class="str">'items'</span>)->get()); <span class="cmt">// Collection, paginator ou array</span></code></pre>
+      <p>O <code>from()</code> lê a Model <strong>campo a campo</strong> com <code>getAttribute()</code>, e não via <code>$model->toArray()</code>:</p>
+      <table>
+        <thead>
+          <tr><th>Na Model</th><th>No DTO</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>datetime</code>, <code>date</code>, timestamps</td><td>Carbon no fuso da aplicação. O <code>toArray()</code> da Model entregaria string ISO em <strong>UTC</strong> (3h a mais em <code>America/Sao_Paulo</code>).</td></tr>
+          <tr><td>data em prop <code>string</code></td><td><code>Y-m-d H:i:s</code>; <code>Y-m-d</code> no cast <code>date</code>; o formato do cast em <code>date:d/m/Y</code></td></tr>
+          <tr><td><code>boolean</code>, <code>integer</code>, <code>float</code>, <code>decimal:2</code>, <code>array</code>, <code>object</code>, enum</td><td>convertidos para o tipo da prop</td></tr>
+          <tr><td><code>$hidden</code></td><td>disponível (o DTO declara o campo explicitamente)</td></tr>
+          <tr><td><code>$appends</code></td><td>lido pelo accessor</td></tr>
+          <tr><td>relação carregada</td><td>DTO ou lista de DTOs; <code>order_items</code> encontra <code>orderItems</code></td></tr>
+          <tr><td>relação não carregada</td><td>ausente — <strong>nunca</strong> dispara lazy loading; <code>wasProvided()</code> = false</td></tr>
+        </tbody>
+      </table>
+      <p>Só os campos que o DTO declara são lidos. <code>collect()</code> preserva as chaves e junta os erros de todos os itens com o índice no caminho (<code>1.name</code>).</p>
+
+      <h3>DTO → Model</h3>
+      <p>Datas saem do <code>toArray()</code> como <code>Y-m-d H:i:s</code>, prontas para os casts da Model.</p>
+<pre><code><span class="cmt">// criar</span>
+Order::create($dto->toArray());
+
+<span class="cmt">// atualizar: só o que veio na requisição</span>
+$order->update($dto->toArrayProvided());
+
+<span class="cmt">// ou: só o que mudou desde o from()</span>
+$dto = OrderDto::fromTracked($order);
+<span class="cmt">// ... altera o DTO ...</span>
+$order->update($dto->only(...array_keys($dto->getDirty()))); <span class="cmt">// only() serializa datas/enums/DTOs</span></code></pre>
+      <div class="callout callout-warn">
+        <div class="callout-title">Nunca toArray() em update</div>
+        <code>toArray()</code> traz <strong>todas</strong> as propriedades (as não preenchidas com default/zero/null) e sobrescreveria colunas que não vieram. Em update use <code>toArrayProvided()</code>.
       </div>
     </section>
 
@@ -800,6 +844,8 @@ $dto->syncOriginal();             <span class="cmt">// estado atual vira o origi
           <tr><td>Validação × cast</td><td>antes do cast</td><td>depois do cast (regras de tipo olham o valor recebido)</td></tr>
           <tr><td>Construtor do DTO</td><td>chamado</td><td>não chamado</td></tr>
           <tr><td><code>toArray()</code> com campo não preenchido</td><td>chave some</td><td>sempre presente (regra do <code>create()</code>)</td></tr>
+          <tr><td>Data no <code>toArray()</code></td><td><code>{date, timezone_type, timezone}</code></td><td><code>"Y-m-d H:i:s"</code></td></tr>
+          <tr><td><code>from($model)</code> com data</td><td>string ISO em UTC</td><td>Carbon no fuso da aplicação</td></tr>
         </tbody>
       </table>
     </section>

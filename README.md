@@ -83,7 +83,8 @@ deliberadas: criam-se à mão uma vez, e o autoincremento continua a partir dela
 ## Compatibilidade
 
 - PHP `^8.1`
-- Sem dependência de framework (aceita Model/Collection do Laravel via `toArray()`)
+- Sem dependência de framework. Com Laravel instalado, reconhece Eloquent Model,
+  Collection e paginator (testado com Laravel 13; APIs usadas existem desde o 10)
 
 ---
 
@@ -131,6 +132,18 @@ $dto->toArray();
     classe (vale para `from()`/`create()` dela e das filhas; não vale para `new`).
     `DateTime` mutável alterado no lugar (`->modify()`) não é detectado — prefira
     `DateTimeImmutable`.
+- Eloquent:
+  - `Dto::from($model)` lê a Model campo a campo (`getAttribute()`), sem passar pelo
+    `$model->toArray()`: casts aplicados, datas como Carbon **no fuso da aplicação**
+    (o `toArray()` da Model converteria para ISO em UTC), `$hidden` disponível,
+    `$appends` e relações **já carregadas** (nunca dispara lazy loading; `order_items`
+    acha `orderItems`). Prop `string` com data recebe `Y-m-d H:i:s`, `Y-m-d` (cast
+    `date`) ou o formato do cast (`date:d/m/Y`).
+  - `Dto::collect($models)` — lista de DTOs a partir de array, Collection ou paginator;
+    erros de todos os itens juntos (`1.name`, `3.qty`).
+  - Datas no `toArray()` saem como `Y-m-d H:i:s`, prontas para `$model->fill()`.
+  - **Update:** `$model->update($dto->toArrayProvided())`. Nunca `toArray()`: ele traz
+    todos os campos e zeraria as colunas que não vieram.
 - Erros de conversão e de validação de **todos** os campos vêm juntos numa
   `PzDtoValidationException` (`->errors()` → `['items.1.qty' => ['...']]`).
 - Regras: `Required`, `IsNotEmpty`, `IsString`, `IsInt`, `IsFloat`, `IsBoolean`, `Min`,
@@ -159,6 +172,8 @@ atributos e revise as diferenças de comportamento:
 | Validação × cast | antes | depois (regras de tipo olham o valor recebido) |
 | Construtor do DTO | chamado | não chamado |
 | `toArray()` com campo não preenchido | chave some | sempre presente (regra do `create()`) |
+| Data no `toArray()` | `{date, timezone_type, timezone}` | `"Y-m-d H:i:s"` |
+| `from($model)` com data | string ISO em UTC (`toArray()` da Model) | Carbon no fuso da aplicação |
 
 > Não faça `BaseDto extends PzDto` enquanto houver DTOs com `use FromArrayTrait`
 > herdando dele — as assinaturas conflitam. Use uma base nova durante a transição.
