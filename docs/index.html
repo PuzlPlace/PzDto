@@ -669,9 +669,36 @@ $dto->toArrayProvided();          <span class="cmt">// ['description' => 'Alugue
 
 $repository->update($id, $dto->toArrayProvided()); <span class="cmt">// não sobrescreve o resto</span></code></pre>
 
-      <h3>Recortes</h3>
-<pre><code>$dto->only(<span class="str">'description'</span>, <span class="str">'amount'</span>);
-$dto->except(<span class="str">'internal_notes'</span>);   <span class="cmt">// nome inexistente lança PzDtoException</span></code></pre>
+      <h3>Recortes e caminhos</h3>
+      <p><code>only()</code> e <code>except()</code> aceitam notação de ponto e <code>*</code> em qualquer profundidade, misturando DTO, lista de DTO e array comum:</p>
+<pre><code>$dto->only(<span class="str">'description'</span>, <span class="str">'items.*.sku'</span>, <span class="str">'items.*.tag.name'</span>);
+<span class="cmt">// ['description' => 'Pedido', 'items' => [['sku' => 'A', 'tag' => ['name' => 'novo']], ...]]</span>
+
+$dto->only(<span class="str">'items.1.qty'</span>);              <span class="cmt">// ['items' => [1 => ['qty' => 2]]]</span>
+$dto->except(<span class="str">'items.*.qty'</span>, <span class="str">'customer.document'</span>);</code></pre>
+      <ul>
+        <li>O primeiro segmento precisa ser propriedade pública: erro de digitação lança <code>PzDtoException</code>.</li>
+        <li>Dentro dele, caminho inexistente é ignorado; lista percorrida por <code>*</code> mantém os índices.</li>
+        <li>O resultado segue a ordem das propriedades, não a ordem dos caminhos pedidos.</li>
+      </ul>
+
+      <h3>No estilo do Request do Laravel</h3>
+      <table>
+        <thead>
+          <tr><th>Laravel (Request)</th><th>PzDto</th><th>O que faz</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>input('a.b')</code></td><td><code>get('items.0.sku', $default)</code></td><td>valor real (DTO, enum, data); <code>*</code> devolve lista</td></tr>
+          <tr><td><code>has</code> / <code>hasAny</code></td><td><code>wasProvided</code> / <code>wasProvidedAny</code></td><td>a chave veio? aceita caminho; com <code>*</code> todos os itens precisam ter</td></tr>
+          <tr><td><code>missing</code></td><td><code>missing</code></td><td><code>! wasProvided()</code></td></tr>
+          <tr><td><code>filled</code> / <code>anyFilled</code> / <code>isNotFilled</code></td><td>iguais</td><td>veio e não é null, string em branco nem array vazio</td></tr>
+          <tr><td><code>whenHas</code> / <code>whenFilled</code></td><td><code>whenProvided</code> / <code>whenFilled</code></td><td><code>$callback($valor, $dto)</code>, senão <code>$default($dto)</code></td></tr>
+          <tr><td><code>merge</code> / <code>mergeIfMissing</code></td><td><code>fill</code> / <code>fillMissing</code></td><td>atribui convertendo e validando (tudo ou nada) e marca como recebido</td></tr>
+        </tbody>
+      </table>
+<pre><code>$dto->whenFilled(<span class="str">'customer.document'</span>, fn ($doc) => $this->checkDocument($doc));
+$dto->fill([<span class="str">'amount'</span> => <span class="str">'10,5'</span>]);          <span class="cmt">// 10.5, validado; wasProvided('amount') = true</span></code></pre>
+      <p><code>toArrayProvided()</code> também desce nos aninhados: cada DTO (direto ou em lista) entrega só os campos que vieram para ele — PATCH aninhado não sobrescreve o que não foi enviado.</p>
 
       <h3>O que mudou (opt-in)</h3>
       <p>Desligado por padrão. Três formas de ligar:</p>
@@ -701,6 +728,7 @@ $dto->isDirty(<span class="str">'description'</span>);     <span class="cmt">// 
 $dto->isClean(<span class="str">'description'</span>);     <span class="cmt">// true</span>
 $dto->getDirty();                 <span class="cmt">// ['amount' => 15.0]</span>
 $dto->getOriginal(<span class="str">'amount'</span>);      <span class="cmt">// 10.0</span>
+$dto->getDirtyPaths();            <span class="cmt">// ['amount' => 15.0, 'items.1.qty' => 3] — desce nos aninhados</span>
 $dto->syncOriginal();             <span class="cmt">// estado atual vira o original</span></code></pre>
       <ul>
         <li>DTO aninhado alterado (<code>$dto->address->city = 'RJ'</code>) suja o campo do pai, inclusive em listas.</li>

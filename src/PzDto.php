@@ -13,6 +13,7 @@ use Puzl\PzDto\Support\ClassMetadata;
 use Puzl\PzDto\Support\Comparator;
 use Puzl\PzDto\Support\Messages;
 use Puzl\PzDto\Support\ModelReader;
+use Puzl\PzDto\Support\Path;
 
 /**
  * Base dos DTOs: basta estender (direto ou por uma base do projeto).
@@ -283,18 +284,16 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * A chave de todos os campos informados veio no from()/create()?
+     * As chaves de todos os caminhos informados vieram no from()/create()/fill()?
      * Separa "não mandou" de "mandou null" (ex.: update parcial / PATCH).
+     *
+     * Aceita notação de ponto e `*`: `wasProvided('customer.name', 'items.*.sku')`.
+     * Com `*`, a lista precisa ter itens e todos precisam ter a chave.
      */
-    public function wasProvided(string ...$fields): bool
+    public function wasProvided(string ...$paths): bool
     {
-        $metadata = ClassMetadata::for(static::class);
-
-        foreach ($fields as $field) {
-            if (! isset($metadata->indexes[$field])) {
-                throw new PzDtoException(sprintf('%s has no property "%s".', static::class, $field));
-            }
-            if (! Bits::has($this->pzProvided, $metadata->indexes[$field])) {
+        foreach ($paths as $path) {
+            if (! $this->pathProvided($this, Path::segments($path), $path)) {
                 return false;
             }
         }
@@ -303,7 +302,29 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * Nomes dos campos cuja chave veio no from()/create().
+     * Algum dos caminhos veio na entrada?
+     */
+    public function wasProvidedAny(string ...$paths): bool
+    {
+        foreach ($paths as $path) {
+            if ($this->wasProvided($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Algum dos caminhos não veio na entrada? (= ! wasProvided(...))
+     */
+    public function missing(string ...$paths): bool
+    {
+        return ! $this->wasProvided(...$paths);
+    }
+
+    /**
+     * Nomes dos campos (primeiro nível) cuja chave veio no from()/create()/fill().
      *
      * @return array<int, string>
      */
@@ -318,42 +339,152 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * toArray() só com as propriedades públicas que vieram na entrada.
+     * toArray() só com o que veio na entrada — em todos os níveis: cada DTO
+     * aninhado (direto ou em lista) entrega só os campos que vieram para ele.
      *
      * @return array<string, mixed>
      */
     public function toArrayProvided(): array
     {
-        return $this->serialize(array_values(array_intersect(
-            ClassMetadata::for(static::class)->publicNames,
-            $this->provided(),
-        )));
+        return self::jsonRoundTrip($this->exportProvided());
     }
 
     /**
-     * toArray() só com os campos informados.
-     *
-     * @return array<string, mixed>
+     * Valor pelo caminho (`customer.name`, `items.0.sku`, `items.*.sku` → lista).
+     * Devolve o valor real (DTO, enum, DateTime), não serializado.
      */
-    public function only(string ...$fields): array
+    public function get(string $path, mixed $default = null): mixed
     {
         $metadata = ClassMetadata::for(static::class);
-        array_walk($fields, fn (string $field) => $metadata->assertPublic($field));
+        $segments = Path::segments($path);
+        $metadata->assertPublic($segments[0]);
 
-        return $this->serialize(array_values(array_intersect($metadata->publicNames, $fields)));
+        return self::dig($this, $segments, $default);
     }
 
     /**
-     * toArray() sem os campos informados.
+     * Todos os caminhos vieram e estão preenchidos (não null, não string em branco,
+     * não array vazio)? Com `*`, todos os itens precisam estar preenchidos.
+     */
+    public function filled(string ...$paths): bool
+    {
+        foreach ($paths as $path) {
+            if (! $this->wasProvided($path) || ! self::isFilledValue($this->get($path), str_contains($path, '*'))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function anyFilled(string ...$paths): bool
+    {
+        foreach ($paths as $path) {
+            if ($this->filled($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Nenhum dos caminhos está preenchido?
+     */
+    public function isNotFilled(string ...$paths): bool
+    {
+        return ! $this->anyFilled(...$paths);
+    }
+
+    /**
+     * Executa `$callback($valor, $dto)` se o caminho veio na entrada; senão `$default($dto)`.
+     *
+     * @param callable(mixed, static): mixed $callback
+     * @param (callable(static): mixed)|null $default
+     */
+    public function whenProvided(string $path, callable $callback, ?callable $default = null): static
+    {
+        if ($this->wasProvided($path)) {
+            $callback($this->get($path), $this);
+        } elseif ($default !== null) {
+            $default($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Executa `$callback($valor, $dto)` se o caminho está preenchido; senão `$default($dto)`.
+     *
+     * @param callable(mixed, static): mixed $callback
+     * @param (callable(static): mixed)|null $default
+     */
+    public function whenFilled(string $path, callable $callback, ?callable $default = null): static
+    {
+        if ($this->filled($path)) {
+            $callback($this->get($path), $this);
+        } elseif ($default !== null) {
+            $default($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Atribui valores convertendo e validando como no from(), e marca os campos
+     * como recebidos. Tudo ou nada: com erro, nada é alterado. Chaves que não são
+     * propriedades são ignoradas (como no from()).
+     *
+     * @param array<string, mixed>|object $values
+     *
+     * @throws PzDtoValidationException
+     */
+    public function fill(array|object $values): static
+    {
+        return $this->assign(is_array($values) ? $values : self::normalizeInput($values), false);
+    }
+
+    /**
+     * fill() só dos campos que ainda não vieram na entrada.
+     *
+     * @param array<string, mixed>|object $values
+     *
+     * @throws PzDtoValidationException
+     */
+    public function fillMissing(array|object $values): static
+    {
+        return $this->assign(is_array($values) ? $values : self::normalizeInput($values), true);
+    }
+
+    /**
+     * toArray() só com os caminhos informados. Aceita notação de ponto e `*`:
+     *
+     * ```php
+     * $dto->only('description', 'items.*.sku', 'items.*.tag.name');
+     * ```
+     *
+     * O primeiro segmento precisa ser propriedade pública (erro de digitação lança);
+     * dentro dele, caminho inexistente é ignorado.
      *
      * @return array<string, mixed>
      */
-    public function except(string ...$fields): array
+    public function only(string ...$paths): array
     {
-        $metadata = ClassMetadata::for(static::class);
-        array_walk($fields, fn (string $field) => $metadata->assertPublic($field));
+        $this->assertRootPaths($paths);
 
-        return $this->serialize(array_values(array_diff($metadata->publicNames, $fields)));
+        return Path::only($this->toArray(), $paths);
+    }
+
+    /**
+     * toArray() sem os caminhos informados (notação de ponto e `*`, como no only()).
+     *
+     * @return array<string, mixed>
+     */
+    public function except(string ...$paths): array
+    {
+        $this->assertRootPaths($paths);
+
+        return Path::except($this->toArray(), $paths);
     }
 
     /**
@@ -419,6 +550,33 @@ abstract class PzDto implements \JsonSerializable
             if ($this->fieldChanged($metadata, $name)) {
                 $dirty[$name] = $this->currentValue($metadata, $name);
             }
+        }
+
+        return $dirty;
+    }
+
+    /**
+     * O que mudou, em notação de ponto e já serializado, descendo nos DTOs
+     * aninhados e listas: `['amount' => 15.0, 'items.1.qty' => 3]`.
+     * Chave que deixou de existir aparece com null.
+     *
+     * @return array<string, mixed>
+     */
+    public function getDirtyPaths(): array
+    {
+        $this->assertTracking();
+
+        $original = Path::flatten(self::jsonRoundTrip($this->exportOriginal()));
+        $current = Path::flatten($this->toArray());
+
+        $dirty = [];
+        foreach ($current as $path => $value) {
+            if (! array_key_exists($path, $original) || $original[$path] !== $value) {
+                $dirty[$path] = $value;
+            }
+        }
+        foreach (array_diff_key($original, $current) as $path => $value) {
+            $dirty[$path] = null;
         }
 
         return $dirty;
@@ -522,18 +680,227 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * @param array<int, string> $names
+     * @param array<int, string> $paths
+     */
+    private function assertRootPaths(array $paths): void
+    {
+        $metadata = ClassMetadata::for(static::class);
+        foreach ($paths as $path) {
+            $metadata->assertPublic(Path::segments($path)[0]);
+        }
+    }
+
+    /**
+     * @param array<int, string> $segments
+     */
+    private function pathProvided(mixed $node, array $segments, string $path): bool
+    {
+        $segment = array_shift($segments);
+
+        if ($node instanceof self) {
+            $metadata = ClassMetadata::for($node::class);
+            if (! isset($metadata->indexes[$segment])) {
+                if ($node === $this) {
+                    throw new PzDtoException(sprintf('%s has no property "%s".', static::class, $segment));
+                }
+
+                return false;
+            }
+            if (! Bits::has($node->pzProvided, $metadata->indexes[$segment])) {
+                return false;
+            }
+            [, $value] = $metadata->read($node, $metadata->properties[$segment]);
+
+            return $segments === [] || $this->pathProvided($value, $segments, $path);
+        }
+
+        if ($segment === '*') {
+            if (! is_array($node) || $node === []) {
+                return false;
+            }
+            foreach ($node as $item) {
+                if ($segments !== [] && ! $this->pathProvided($item, $segments, $path)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (is_object($node) && ! $node instanceof \UnitEnum) {
+            $node = get_object_vars($node);
+        }
+        if (! is_array($node) || ! array_key_exists($segment, $node)) {
+            return false;
+        }
+
+        return $segments === [] || $this->pathProvided($node[$segment], $segments, $path);
+    }
+
+    /**
+     * @param array<int, string> $segments
+     */
+    private static function dig(mixed $node, array $segments, mixed $default): mixed
+    {
+        while ($segments !== []) {
+            $segment = array_shift($segments);
+
+            if ($segment === '*') {
+                if (! is_array($node)) {
+                    return $default;
+                }
+
+                return array_map(
+                    static fn (mixed $item): mixed => $segments === [] ? $item : self::dig($item, $segments, $default),
+                    $node,
+                );
+            }
+
+            if ($node instanceof self) {
+                $metadata = ClassMetadata::for($node::class);
+                if (! isset($metadata->publicIndexes[$segment])) {
+                    return $default;
+                }
+                $node = $node->currentValue($metadata, $segment);
+            } elseif (is_array($node) && array_key_exists($segment, $node)) {
+                $node = $node[$segment];
+            } elseif (is_object($node) && ! $node instanceof \UnitEnum && property_exists($node, $segment)) {
+                $node = get_object_vars($node)[$segment] ?? null;
+            } else {
+                return $default;
+            }
+        }
+
+        return $node;
+    }
+
+    private static function isFilledValue(mixed $value, bool $list): bool
+    {
+        if ($list && is_array($value)) {
+            foreach ($value as $item) {
+                if (! self::isFilledValue($item, false)) {
+                    return false;
+                }
+            }
+
+            return $value !== [];
+        }
+
+        return ! ($value === null || $value === [] || (is_string($value) && trim($value) === ''));
+    }
+
+    /**
+     * @param array<string, mixed> $values
      *
+     * @throws PzDtoValidationException
+     */
+    private function assign(array $values, bool $onlyMissing): static
+    {
+        $metadata = ClassMetadata::for(static::class);
+        $pending = [];
+        $errors = [];
+
+        foreach ($values as $name => $raw) {
+            $name = (string) $name;
+            if (! isset($metadata->properties[$name])) {
+                continue;
+            }
+            if ($onlyMissing && Bits::has($this->pzProvided, $metadata->indexes[$name])) {
+                continue;
+            }
+
+            $property = $metadata->properties[$name];
+            try {
+                $value = Caster::cast($property, $raw, true);
+            } catch (CastError $error) {
+                foreach ($error->errors as $path => $messages) {
+                    $errors[Caster::join($name, (string) $path)] = $messages;
+                }
+                continue;
+            }
+            foreach ($property->rules as $rule) {
+                $message = $rule->validate($value, $raw, $name);
+                if ($message !== null) {
+                    $errors[$name][] = $message;
+                }
+            }
+            $pending[$name] = $value;
+        }
+
+        if ($errors !== []) {
+            throw new PzDtoValidationException($errors, static::class);
+        }
+
+        foreach ($pending as $name => $value) {
+            $metadata->write($this, $metadata->properties[$name], $value);
+            $this->pzProvided = Bits::set($this->pzProvided, $metadata->indexes[$name]);
+        }
+
+        return $this;
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function serialize(array $names): array
+    private function exportProvided(): array
     {
         $metadata = ClassMetadata::for(static::class);
         $data = [];
-        foreach ($names as $name) {
-            $data[$name] = self::exportValue($this->currentValue($metadata, $name));
+        foreach ($metadata->publicNames as $name) {
+            if (Bits::has($this->pzProvided, $metadata->indexes[$name])) {
+                $data[$name] = self::exportProvidedValue($this->currentValue($metadata, $name));
+            }
         }
 
+        return $data;
+    }
+
+    private static function exportProvidedValue(mixed $value): mixed
+    {
+        if ($value instanceof self) {
+            return $value->exportProvided();
+        }
+        if (is_array($value)) {
+            return array_map(self::exportProvidedValue(...), $value);
+        }
+
+        return self::exportValue($value);
+    }
+
+    /**
+     * Estado original, descendo nos DTOs aninhados que rastreiam (cópia rasa:
+     * o filho guarda o próprio original).
+     *
+     * @return array<string, mixed>
+     */
+    private function exportOriginal(): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+        $data = [];
+        foreach ($metadata->publicNames as $name) {
+            $data[$name] = self::exportOriginalValue($this->originalValue($metadata, $name));
+        }
+
+        return $data;
+    }
+
+    private static function exportOriginalValue(mixed $value): mixed
+    {
+        if ($value instanceof self) {
+            return $value->isTrackingChanges() ? $value->exportOriginal() : $value->jsonSerialize();
+        }
+        if (is_array($value)) {
+            return array_map(self::exportOriginalValue(...), $value);
+        }
+
+        return self::exportValue($value);
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private static function jsonRoundTrip(mixed $data): array
+    {
         return json_decode(json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
     }
 

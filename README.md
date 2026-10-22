@@ -125,9 +125,16 @@ $dto->toArray();
 - Rastreamento, no estilo do `isDirty()` do Eloquent:
   - `wasProvided('campo')`, `provided()`, `toArrayProvided()` — o que veio na entrada
     (separa "não mandou" de "mandou null"; ideal para update parcial). Sempre ligado.
-  - `only(...)`, `except(...)` — `toArray()` parcial.
+  - `only(...)`, `except(...)` — `toArray()` parcial, com notação de ponto e `*` em
+    qualquer profundidade: `only('description', 'items.*.sku', 'items.*.tag.name')`.
+  - No estilo do `Request` do Laravel: `get('items.0.sku', $default)`,
+    `wasProvided('customer.name')`, `wasProvidedAny()`, `missing()`, `filled()`,
+    `anyFilled()`, `isNotFilled()`, `whenProvided()`, `whenFilled()`, `fill([...])` e
+    `fillMissing([...])` (convertem, validam — tudo ou nada — e marcam como recebido).
+  - `toArrayProvided()` desce nos aninhados: cada DTO entrega só o que veio para ele.
   - Dirty (opt-in, desligado por padrão): `isDirty(...)`, `isClean(...)`, `getDirty()`,
-    `getOriginal(...)`, `syncOriginal()`. DTO aninhado alterado suja o pai. Três formas
+    `getOriginal(...)`, `syncOriginal()` e `getDirtyPaths()` (`['items.1.qty' => 3]`).
+    DTO aninhado alterado suja o pai. Três formas
     de ligar: `$dto->trackChanges()`, `X::fromTracked($dados)` ou `#[TrackChanges]` na
     classe (vale para `from()`/`create()` dela e das filhas; não vale para `new`).
     `DateTime` mutável alterado no lugar (`->modify()`) não é detectado — prefira
