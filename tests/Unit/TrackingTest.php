@@ -6,6 +6,7 @@ namespace Puzl\PzDto\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Puzl\PzDto\Attributes\DtoAttribute;
+use Puzl\PzDto\Attributes\TrackChanges;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\PzDto;
 
@@ -191,6 +192,71 @@ final class TrackingTest extends TestCase
         self::assertSame(['name' => 'Ana'], array_intersect_key(TrackedDto::from($dto)->toArray(), ['name' => 1]));
     }
 
+    public function test_from_tracked_liga_o_rastreamento(): void
+    {
+        $dto = TrackedDto::fromTracked(['name' => 'Ana', 'address' => ['city' => 'SP']]);
+
+        self::assertTrue($dto->isTrackingChanges());
+        self::assertTrue($dto->address->isTrackingChanges());
+        self::assertFalse($dto->isDirty());
+
+        $dto->address->city = 'RJ';
+        self::assertSame(['address'], array_keys($dto->getDirty()));
+    }
+
+    public function test_from_tracked_aceita_json_e_destructuring(): void
+    {
+        $dto = TrackedDto::fromTracked('{"name":"Ana","extra":{"amount":5}}', ['extra']);
+
+        self::assertSame(5.0, $dto->getOriginal('amount'));
+        self::assertSame(['name', 'amount'], $dto->provided());
+    }
+
+    public function test_from_comum_continua_sem_rastreamento(): void
+    {
+        self::assertFalse(TrackedDto::from([])->isTrackingChanges());
+    }
+
+    public function test_atributo_track_changes_na_classe(): void
+    {
+        $dto = AlwaysTrackedDto::from(['name' => 'Ana', 'address' => ['city' => 'SP']]);
+
+        self::assertTrue($dto->isTrackingChanges());
+        self::assertFalse($dto->isDirty());
+
+        $dto->name = 'Bia';
+        $dto->address->city = 'RJ';
+        self::assertSame(['name', 'address'], array_keys($dto->getDirty()));
+        self::assertSame('Ana', $dto->getOriginal('name'));
+    }
+
+    public function test_atributo_track_changes_vale_para_create_e_filhas(): void
+    {
+        self::assertTrue(AlwaysTrackedDto::create(['name' => 'Ana'])->isTrackingChanges());
+        self::assertTrue(AlwaysTrackedChildDto::from(['name' => 'Ana', 'extra' => 1])->isTrackingChanges());
+        self::assertTrue(AlwaysTrackedDto::fromTracked(['name' => 'Ana'])->isTrackingChanges());
+    }
+
+    public function test_dto_aninhado_com_atributo_rastreia_mesmo_com_pai_sem(): void
+    {
+        $dto = PlainParentDto::from(['child' => ['name' => 'Ana']]);
+
+        self::assertFalse($dto->isTrackingChanges());
+        self::assertTrue($dto->child->isTrackingChanges());
+        self::assertTrue($dto->blank->isTrackingChanges());
+
+        $dto->child->name = 'Bia';
+        self::assertTrue($dto->child->isDirty('name'));
+    }
+
+    public function test_atributo_nao_vale_para_new(): void
+    {
+        $dto = new AlwaysTrackedDto();
+
+        self::assertFalse($dto->isTrackingChanges());
+        self::assertTrue($dto->trackChanges()->isTrackingChanges());
+    }
+
     public function test_mais_de_63_propriedades(): void
     {
         $values = [];
@@ -220,6 +286,26 @@ final class TrackedDto extends PzDto
     #[DtoAttribute]
     public TrackedAddressDto $address;
     protected string $internal = '';
+}
+
+#[TrackChanges]
+class AlwaysTrackedDto extends PzDto
+{
+    public string $name;
+    #[DtoAttribute]
+    public TrackedAddressDto $address;
+}
+
+final class AlwaysTrackedChildDto extends AlwaysTrackedDto
+{
+    public int $extra;
+}
+
+final class PlainParentDto extends PzDto
+{
+    #[DtoAttribute]
+    public AlwaysTrackedDto $child;
+    public AlwaysTrackedDto $blank;
 }
 
 final class TrackedListDto extends PzDto

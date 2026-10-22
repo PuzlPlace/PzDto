@@ -671,7 +671,26 @@ $repository->update($id, $dto->toArrayProvided()); <span class="cmt">// não sob
 <pre><code>$dto->only(<span class="str">'description'</span>, <span class="str">'amount'</span>);
 $dto->except(<span class="str">'internal_notes'</span>);   <span class="cmt">// nome inexistente lança PzDtoException</span></code></pre>
 
-      <h3>O que mudou (opt-in com trackChanges)</h3>
+      <h3>O que mudou (opt-in)</h3>
+      <p>Desligado por padrão. Três formas de ligar:</p>
+      <table>
+        <thead>
+          <tr><th>Forma</th><th>Quando usar</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>$dto->trackChanges()</code></td><td>numa instância qualquer, inclusive criada com <code>new</code></td></tr>
+          <tr><td><code>X::fromTracked($dados)</code></td><td>na criação; mesmos parâmetros do <code>from()</code></td></tr>
+          <tr><td><code>#[TrackChanges]</code> na classe</td><td>DTO que sempre precisa do dirty: todo <code>from()</code>/<code>create()</code> dele e das filhas já nasce rastreando (não vale para <code>new</code>)</td></tr>
+        </tbody>
+      </table>
+<pre><code><span class="kw">use</span> Puzl\PzDto\Attributes\TrackChanges;
+
+#[TrackChanges]
+<span class="kw">class</span> FinanceUpdateDto <span class="kw">extends</span> PzDto { ... }
+
+FinanceUpdateDto::from($dados)->isDirty();      <span class="cmt">// false, já rastreando</span>
+OutroDto::fromTracked($dados)->isDirty();       <span class="cmt">// false, já rastreando</span></code></pre>
+      <p>Uso:</p>
 <pre><code>$dto = FinanceUpdateDto::from($dados)->trackChanges();
 
 $dto->amount = <span class="fn">15</span>;
@@ -685,7 +704,7 @@ $dto->syncOriginal();             <span class="cmt">// estado atual vira o origi
         <li>DTO aninhado alterado (<code>$dto->address->city = 'RJ'</code>) suja o campo do pai, inclusive em listas.</li>
         <li>DTO aninhado trocado por outra instância é comparado pelo conteúdo; enums por case; datas pelo instante e fuso.</li>
         <li>Voltar ao valor original deixa o campo limpo.</li>
-        <li>Sem <code>trackChanges()</code>, <code>isDirty()</code>/<code>getDirty()</code>/<code>getOriginal()</code> lançam <code>PzDtoException</code>.</li>
+        <li>Sem rastreamento ligado, <code>isDirty()</code>/<code>isClean()</code>/<code>getDirty()</code>/<code>getOriginal()</code> lançam <code>PzDtoException</code>; <code>isTrackingChanges()</code> diz se está ligado.</li>
       </ul>
       <div class="callout callout-warn">
         <div class="callout-title">Por que opt-in?</div>

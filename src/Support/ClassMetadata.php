@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Puzl\PzDto\Support;
 
+use Puzl\PzDto\Attributes\TrackChanges;
 use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\PzDto;
@@ -37,6 +38,7 @@ final class ClassMetadata
     ) {
         $this->indexes = array_flip(array_keys($properties));
         $this->bitsAsInt = Bits::fitsInInt(count($properties));
+        $this->tracksChanges = self::hasTrackChanges($reflection);
         $this->publicIndexes = array_flip($publicNames);
     }
 
@@ -45,6 +47,9 @@ final class ClassMetadata
 
     /** @var array<string, int> Posição de cada propriedade (bit em "provided") */
     public readonly array $indexes;
+
+    /** #[TrackChanges] na classe ou em alguma classe-pai? */
+    public readonly bool $tracksChanges;
 
     /** Bits de "provided" cabem num int (até 63 propriedades)? */
     public readonly bool $bitsAsInt;
@@ -94,6 +99,22 @@ final class ClassMetadata
         }
 
         return [true, $reflection->getValue($instance)];
+    }
+
+    /**
+     * Atributos de classe não são herdados pela reflexão; aqui a filha herda o do pai.
+     *
+     * @param \ReflectionClass<object> $reflection
+     */
+    private static function hasTrackChanges(\ReflectionClass $reflection): bool
+    {
+        for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
+            if ($current->getAttributes(TrackChanges::class) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

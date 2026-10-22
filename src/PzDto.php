@@ -73,6 +73,22 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
+     * from() com o rastreamento de alterações já ligado (= from()->trackChanges()).
+     *
+     * @param array<string, mixed>|object|string|null $values
+     * @param array<int, string>|null $destructuring
+     *
+     * @throws PzDtoValidationException
+     * @throws PzDtoException
+     */
+    public static function fromTracked(mixed $values, ?array $destructuring = null): static
+    {
+        $instance = static::from($values, $destructuring);
+
+        return $instance->isTrackingChanges() ? $instance : $instance->trackChanges();
+    }
+
+    /**
      * Instanciar a própria classe, convertendo e validando cada propriedade.
      *
      * @param array<string, mixed>|null $values
@@ -151,6 +167,9 @@ abstract class PzDto implements \JsonSerializable
         }
 
         $instance->pzProvided = $provided;
+        if ($metadata->tracksChanges) {
+            $instance->syncOriginal();
+        }
 
         return $instance;
     }
@@ -298,7 +317,8 @@ abstract class PzDto implements \JsonSerializable
 
     /**
      * Liga o rastreamento de alterações: o estado atual vira o original (inclusive
-     * nos DTOs aninhados). Necessário antes de isDirty()/getDirty()/getOriginal().
+     * nos DTOs aninhados). Necessário antes de isDirty()/getDirty()/getOriginal(),
+     * a menos que a classe tenha #[TrackChanges] ou o DTO venha de fromTracked().
      *
      * ```php
      * $dto = FinanceUpdateDto::from($dados)->trackChanges();

@@ -125,8 +125,10 @@ $dto->toArray();
   - `wasProvided('campo')`, `provided()`, `toArrayProvided()` — o que veio na entrada
     (separa "não mandou" de "mandou null"; ideal para update parcial). Sempre ligado.
   - `only(...)`, `except(...)` — `toArray()` parcial.
-  - `trackChanges()` liga o dirty (opt-in): `isDirty(...)`, `isClean(...)`, `getDirty()`,
-    `getOriginal(...)`, `syncOriginal()`. DTO aninhado alterado suja o pai.
+  - Dirty (opt-in, desligado por padrão): `isDirty(...)`, `isClean(...)`, `getDirty()`,
+    `getOriginal(...)`, `syncOriginal()`. DTO aninhado alterado suja o pai. Três formas
+    de ligar: `$dto->trackChanges()`, `X::fromTracked($dados)` ou `#[TrackChanges]` na
+    classe (vale para `from()`/`create()` dela e das filhas; não vale para `new`).
     `DateTime` mutável alterado no lugar (`->modify()`) não é detectado — prefira
     `DateTimeImmutable`.
 - Erros de conversão e de validação de **todos** os campos vêm juntos numa
