@@ -27,10 +27,12 @@ final class ClassMetadata
     /**
      * @param \ReflectionClass<object> $reflection
      * @param array<string, PropertyMetadata> $properties
+     * @param array<int, string> $publicNames Públicas na ordem do json_encode (pai antes da filha)
      */
     private function __construct(
         public readonly \ReflectionClass $reflection,
         public readonly array $properties,
+        public readonly array $publicNames,
     ) {
     }
 
@@ -89,7 +91,23 @@ final class ClassMetadata
             }
         }
 
-        return new self($reflection, $properties);
+        // Ordem da tabela de propriedades do PHP: da raiz para a filha, cada nome
+        // na posição em que apareceu primeiro.
+        $publicNames = [];
+        $chain = [];
+        for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
+            array_unshift($chain, $current);
+        }
+        foreach ($chain as $current) {
+            foreach ($current->getProperties() as $property) {
+                $name = $property->getName();
+                if (isset($properties[$name]) && $properties[$name]->isPublic && ! in_array($name, $publicNames, true)) {
+                    $publicNames[] = $name;
+                }
+            }
+        }
+
+        return new self($reflection, $properties, $publicNames);
     }
 
     private static function describe(\ReflectionProperty $property): PropertyMetadata
@@ -134,6 +152,7 @@ final class ClassMetadata
             name: $property->getName(),
             declaringClass: $property->getDeclaringClass()->getName(),
             type: $property->getType(),
+            isPublic: $property->isPublic(),
             hasDefault: $property->hasDefaultValue(),
             default: $property->hasDefaultValue() ? $property->getDefaultValue() : null,
             dtoClass: $dtoClass,

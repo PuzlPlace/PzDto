@@ -117,6 +117,10 @@ $dto->toArray();
 ```
 
 - `from()` aceita array, Model (`toArray()`), stdClass, outro DTO ou JSON; `from($dados, ['chave'])` mescla `$dados['chave']` na raiz.
+- `toArray()`/`toJson()`/`json_encode($dto)` trazem **sempre** todas as propriedades
+  públicas. Campo nunca preenchido (ex.: `new` + atribuição parcial) sai com o que o
+  `create()` daria sem a chave: default; `null` se nullable; senão o zero do tipo
+  (`0`, `0.0`, `''`, `false`, `[]`, DTO vazio); enum/data sem default → `null`.
 - Erros de conversão e de validação de **todos** os campos vêm juntos numa
   `PzDtoValidationException` (`->errors()` → `['items.1.qty' => ['...']]`).
 - Regras: `Required`, `IsNotEmpty`, `IsString`, `IsInt`, `IsFloat`, `IsBoolean`, `Min`,
@@ -144,6 +148,7 @@ atributos e revise as diferenças de comportamento:
 | Vários atributos na propriedade | só o primeiro | todos, em qualquer ordem |
 | Validação × cast | antes | depois (regras de tipo olham o valor recebido) |
 | Construtor do DTO | chamado | não chamado |
+| `toArray()` com campo não preenchido | chave some | sempre presente (regra do `create()`) |
 
 > Não faça `BaseDto extends PzDto` enquanto houver DTOs com `use FromArrayTrait`
 > herdando dele — as assinaturas conflitam. Use uma base nova durante a transição.

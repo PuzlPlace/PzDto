@@ -629,8 +629,26 @@ Dto::from($dados, [<span class="str">'address'</span>]);    <span class="cmt">//
 Dto::create([<span class="str">'a'</span> => 1]);
 
 $dto->toArray();                    <span class="cmt">// mesmo formato da trait (enum → value)</span>
-$dto->toJson();
+$dto->toJson();                     <span class="cmt">// = json_encode($dto)</span>
 $dto->assertValid();                <span class="cmt">// revalida após alterar propriedades</span></code></pre>
+      <h3>Campos não preenchidos no toArray()</h3>
+      <p><code>toArray()</code>, <code>toJson()</code> e <code>json_encode($dto)</code> trazem <strong>sempre todas</strong> as propriedades públicas, na ordem de declaração (pai antes da filha). Um campo que nunca recebeu valor — por exemplo depois de <code>new</code> com atribuição parcial — sai com o que o <code>create()</code> daria se a chave não viesse:</p>
+      <table>
+        <thead>
+          <tr><th>Campo não preenchido</th><th>No toArray()</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>com default</td><td>o default</td></tr>
+          <tr><td>nullable (<code>?float</code>)</td><td><code>null</code></td></tr>
+          <tr><td>não-nullable (<code>float</code>, <code>int</code>, <code>string</code>, <code>bool</code>, <code>array</code>)</td><td><code>0.0</code>, <code>0</code>, <code>''</code>, <code>false</code>, <code>[]</code></td></tr>
+          <tr><td>enum ou data não-nullable</td><td><code>null</code> (não têm zero)</td></tr>
+          <tr><td>DTO aninhado</td><td>o DTO vazio</td></tr>
+        </tbody>
+      </table>
+<pre><code>$dto = <span class="kw">new</span> FinanceDto();
+$dto->description = <span class="str">'Aluguel'</span>;
+$dto->toArray(); <span class="cmt">// ['description' => 'Aluguel', 'amount' => 0.0, 'discount' => null, ...]</span></code></pre>
+      <p>Atribuição manual não converte nem valida; use <code>assertValid()</code> ou prefira <code>Dto::create([...])</code>.</p>
     </section>
 
     <section id="validacoes">
@@ -716,6 +734,7 @@ $dto->assertValid();                <span class="cmt">// revalida após alterar 
           <tr><td><code>#[IsFloat]</code>/<code>#[IsBoolean]</code></td><td>checavam <code>is_int</code></td><td>checam o tipo certo</td></tr>
           <tr><td>Validação × cast</td><td>antes do cast</td><td>depois do cast (regras de tipo olham o valor recebido)</td></tr>
           <tr><td>Construtor do DTO</td><td>chamado</td><td>não chamado</td></tr>
+          <tr><td><code>toArray()</code> com campo não preenchido</td><td>chave some</td><td>sempre presente (regra do <code>create()</code>)</td></tr>
         </tbody>
       </table>
     </section>

@@ -67,6 +67,20 @@ final class Caster
     }
 
     /**
+     * O que o create() daria para a propriedade se a chave não viesse — usado no
+     * toArray() de campos nunca preenchidos. Enum e data sem default, que no
+     * create() seriam erro, ficam null.
+     */
+    public static function absent(PropertyMetadata $property): mixed
+    {
+        try {
+            return self::cast($property, null, false);
+        } catch (CastError) {
+            return null;
+        }
+    }
+
+    /**
      * Valor para propriedade sem dado utilizável (ausente ou null em não-nullable).
      *
      * @throws CastError

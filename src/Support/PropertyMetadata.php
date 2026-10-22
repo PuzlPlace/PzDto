@@ -22,6 +22,7 @@ final class PropertyMetadata
         public readonly string $name,
         public readonly string $declaringClass,
         public readonly ?\ReflectionType $type,
+        public readonly bool $isPublic,
         public readonly bool $hasDefault,
         public readonly mixed $default,
         public readonly ?string $dtoClass,

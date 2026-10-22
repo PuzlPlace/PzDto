@@ -29,7 +29,7 @@ use Puzl\PzDto\Support\Messages;
  * $dto = FinanceCreateDto::from($request->validated());
  * ```
  */
-abstract class PzDto
+abstract class PzDto implements \JsonSerializable
 {
     /**
      * Carregar dados através de array | Model | stdClass | DTO | string JSON.
@@ -167,6 +167,10 @@ abstract class PzDto
     /**
      * Propriedades públicas como array (enums viram o value; DTOs aninhados, arrays).
      *
+     * Sempre traz todas as públicas. Campo nunca preenchido (ex.: `new` com atribuição
+     * parcial) sai com o que o create() daria sem a chave: default; null se nullable;
+     * senão o zero do tipo (0, 0.0, '', false, [], DTO vazio); enum/data → null.
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -177,6 +181,23 @@ abstract class PzDto
     public function toJson(): string
     {
         return json_encode($this, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+        $data = [];
+
+        foreach ($metadata->publicNames as $name) {
+            $property = $metadata->properties[$name];
+            [$initialized, $value] = $metadata->read($this, $property);
+            $data[$name] = $initialized ? $value : Caster::absent($property);
+        }
+
+        return $data;
     }
 
     /**

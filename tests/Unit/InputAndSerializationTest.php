@@ -99,6 +99,86 @@ final class InputAndSerializationTest extends TestCase
         self::assertEquals($dto, ProductDto::from($dto->toArray()));
         self::assertEquals($dto, ProductDto::from($dto->toJson()));
     }
+
+    public function test_to_array_de_new_parcial_traz_todos_os_campos_como_o_create(): void
+    {
+        $dto = new PartialDto();
+        $dto->name = 'x';
+
+        $expected = [
+            'name' => 'x',
+            'int' => 0,
+            'float' => 0.0,
+            'text' => '',
+            'flag' => false,
+            'list' => [],
+            'nullable' => null,
+            'withDefault' => 10,
+            'untyped' => null,
+            'kind' => null,
+            'date' => null,
+            'supplier' => ['name' => ''],
+            'ro' => 0,
+        ];
+
+        self::assertSame($expected, $dto->toArray());
+        $blank = PartialDto::blank();
+        $blank->name = 'x';
+        self::assertSame($blank->toArray(), $dto->toArray());
+
+        // Mesmo resultado do create() para os campos que ele consegue preencher sozinho.
+        $created = PartialDto::create(['name' => 'x', 'kind' => 'bag', 'date' => '2026-01-01'])->toArray();
+        unset($created['kind'], $created['date'], $expected['kind'], $expected['date']);
+        self::assertSame($expected, $created);
+
+        self::assertSame('{"name":"x","int":0,"float":0.0,', substr($dto->toJson(), 0, 32));
+    }
+
+    public function test_to_array_segue_a_ordem_do_pai_para_a_filha_e_ignora_nao_publicas(): void
+    {
+        $dto = new ChildPartialDto();
+        $dto->child = 'c';
+
+        self::assertSame(['parent' => 1, 'shared' => 'filha', 'child' => 'c'], $dto->toArray());
+    }
+
+    public function test_json_encode_direto_e_aninhado_usa_o_mesmo_formato(): void
+    {
+        $dto = new ChildPartialDto();
+
+        self::assertSame('{"dto":{"parent":1,"shared":"filha","child":""}}', json_encode(['dto' => $dto]));
+    }
+}
+
+class PartialParentDto extends PzDto
+{
+    public int $parent = 1;
+    public string $shared = 'pai';
+    protected string $hidden = 'h';
+}
+
+final class ChildPartialDto extends PartialParentDto
+{
+    public string $child;
+    public string $shared = 'filha';
+}
+
+final class PartialDto extends PzDto
+{
+    public string $name;
+    public int $int;
+    public float $float;
+    public string $text;
+    public bool $flag;
+    public array $list;
+    public ?int $nullable;
+    public int $withDefault = 10;
+    public $untyped;
+    public ProductKind $kind;
+    public \DateTime $date;
+    public SupplierDto $supplier;
+    public readonly int $ro;
+    private string $secret;
 }
 
 enum ProductKind: string
