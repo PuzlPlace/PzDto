@@ -61,12 +61,21 @@ jobs:
       - name: Run tests
         run: composer test
 
+  # Check único exigido pelo ruleset de master (required_status_checks: php-tests).
+  php-tests:
+    name: php-tests
+    needs: phpunit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.phpunit.result }}" = "success"
+
   # Entrega em production com CI verde vira versão sozinha. A versão nunca é
   # escrita à mão: nem no commit, nem no composer.json — sai da última tag.
   release:
     name: Release
-    needs: phpunit
-    if: github.ref == 'refs/heads/production'
+    needs: php-tests
+    if: github.ref == 'refs/heads/production' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     # Serializa pushes seguidos; dois jobs simultâneos calculariam a mesma tag.
