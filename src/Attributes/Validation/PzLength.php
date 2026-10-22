@@ -11,7 +11,7 @@ use Puzl\PzDto\Support\Messages;
  * Quantidade de caracteres (multibyte) de uma string. Não-string é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Length implements ValidationRule
+final class PzLength implements ValidationRule
 {
     public function __construct(
         public readonly ?int $min = null,
@@ -30,10 +30,10 @@ final class Length implements ValidationRule
         $replace = ['min' => $this->min ?? 0, 'max' => $this->max ?? 0];
 
         if ($this->min !== null && $length < $this->min) {
-            return Messages::make($this->message, 'The :field field must be at least :min characters.', $field, $replace);
+            return Messages::make($this->message, 'length.min', $field, $replace);
         }
         if ($this->max !== null && $length > $this->max) {
-            return Messages::make($this->message, 'The :field field must not be greater than :max characters.', $field, $replace);
+            return Messages::make($this->message, 'length.max', $field, $replace);
         }
 
         return null;

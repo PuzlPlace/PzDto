@@ -1,8 +1,9 @@
 {
     "name": "puzl/pzdto",
-    "description": "DTO por herança (extends PzDto) com cast automático, aninhamento de DTO/enum e validações por atributo — sucessor da FromArrayTrait.",
+    "description": "DTO por herança (extends PzDto) com cast automático, aninhamento de DTO/enum, validações por atributo e rastreamento de alterações — sucessor da FromArrayTrait.",
     "type": "library",
     "license": "proprietary",
+    "keywords": ["dto", "data-transfer-object", "validation", "attributes", "laravel", "eloquent", "puzl"],
     "require": {
         "php": "^8.1"
     },
@@ -10,6 +11,9 @@
         "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/pagination": "^10.0|^11.0|^12.0|^13.0",
         "phpunit/phpunit": "^10.5"
+    },
+    "suggest": {
+        "illuminate/database": "Para ler Eloquent Models campo a campo em Dto::from($model) e Dto::collect($models)"
     },
     "autoload": {
         "psr-4": {

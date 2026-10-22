@@ -8,12 +8,13 @@ use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Support\Messages;
 
 /**
- * UUID (versões 1 a 8). Null e string vazia são ignorados.
+ * UUID (versões 1 a 8, mais o nil `0000…` e o max `ffff…`, como a regra `uuid`
+ * do Laravel). Null e string vazia são ignorados.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsUUID implements ValidationRule
+final class PzIsUUID implements ValidationRule
 {
-    private const PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
+    private const PATTERN = '/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|0{8}-0{4}-0{4}-0{4}-0{12}|f{8}-f{4}-f{4}-f{4}-f{12})$/i';
 
     public function __construct(
         public readonly ?string $message = null,
@@ -26,6 +27,6 @@ final class IsUUID implements ValidationRule
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be a valid UUID.', $field);
+        return Messages::make($this->message, 'uuid', $field);
     }
 }

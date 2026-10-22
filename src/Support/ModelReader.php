@@ -42,7 +42,7 @@ final class ModelReader
     }
 
     /**
-     * Atributo (coluna, cast, accessor em `$appends`) ou relação carregada
+     * Atributo (coluna, cast, accessor — em `$appends` ou não) ou relação carregada
      * (`order_items` também encontra a relação `orderItems`).
      *
      * @return array{bool, mixed} [encontrado?, valor]
@@ -50,7 +50,7 @@ final class ModelReader
     public static function readKey(object $model, string $key, ?PropertyMetadata $property = null): array
     {
         /** @var \Illuminate\Database\Eloquent\Model $model */
-        if (array_key_exists($key, $model->getAttributes()) || in_array($key, $model->getAppends(), true)) {
+        if (array_key_exists($key, $model->getAttributes()) || in_array($key, $model->getAppends(), true) || self::hasAccessor($model, $key)) {
             $value = $model->getAttribute($key);
             if ($value instanceof \DateTimeInterface && $property?->namedType() === 'string') {
                 $value = $value->format(self::dateFormat((string) ($model->getCasts()[$key] ?? '')));
@@ -66,6 +66,15 @@ final class ModelReader
         }
 
         return [false, null];
+    }
+
+    /**
+     * `getFooAttribute()` (clássico) ou `foo(): Attribute` (Laravel 9+), mesmo fora de `$appends`.
+     */
+    private static function hasAccessor(object $model, string $key): bool
+    {
+        return (method_exists($model, 'hasGetMutator') && $model->hasGetMutator($key))
+            || (method_exists($model, 'hasAttributeGetMutator') && $model->hasAttributeGetMutator($key));
     }
 
     /**

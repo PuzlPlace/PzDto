@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Puzl\PzDto\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\Validation\Min;
-use Puzl\PzDto\Attributes\Validation\Required;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\Validation\PzMin;
+use Puzl\PzDto\Attributes\Validation\PzRequired;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
@@ -249,13 +249,13 @@ final class PathItemDto extends PzDto
 {
     public string $sku;
     public int $qty;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public ?PathTagDto $tag;
 }
 
 final class PathCustomerDto extends PzDto
 {
-    #[Required]
+    #[PzRequired]
     public string $name;
     public ?string $document;
 }
@@ -263,11 +263,11 @@ final class PathCustomerDto extends PzDto
 final class PathOrderDto extends PzDto
 {
     public string $description;
-    #[Min(0)]
+    #[PzMin(0)]
     public float $amount;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public ?PathCustomerDto $customer;
-    #[DtoAttribute(PathItemDto::class)]
+    #[PzDtoAttribute(PathItemDto::class)]
     public array $items = [];
     public array $meta = [];
 }

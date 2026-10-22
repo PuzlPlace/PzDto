@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Puzl\PzDto\Support;
 
+use Puzl\PzDto\Exceptions\PzDtoInputException;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
 
@@ -47,8 +48,8 @@ final class Caster
 
         if ($property->dtoClass !== null) {
             return $property->isArray()
-                ? self::castList($value, $property, fn (mixed $item): mixed => self::toDto($property->dtoClass, $item))
-                : self::toDto($property->dtoClass, $value);
+                ? self::castList($value, $property, fn (mixed $item): mixed => self::toDto($property->dtoClass, $item, $property->name))
+                : self::toDto($property->dtoClass, $value, $property->name);
         }
 
         if ($property->enumClass !== null) {
@@ -99,7 +100,7 @@ final class Caster
                 return self::blankDto($property->dtoClass);
             }
 
-            throw CastError::message(Messages::make(null, 'The :field field is required.', $property->name));
+            throw CastError::message(Messages::make(null, 'required', $property->name));
         }
 
         $type = $property->type;
@@ -120,7 +121,7 @@ final class Caster
             return self::blankDto($typeName);
         }
 
-        throw CastError::message(Messages::make(null, 'The :field field is required.', $property->name));
+        throw CastError::message(Messages::make(null, 'required', $property->name));
     }
 
     /**
@@ -198,7 +199,7 @@ final class Caster
             }
         }
 
-        throw $firstError ?? CastError::message(Messages::make(null, 'The :field field has an invalid value.', $field));
+        throw $firstError ?? CastError::message(Messages::make(null, 'invalid', $field));
     }
 
     private static function matchesBuiltin(string $typeName, mixed $value): bool
@@ -234,7 +235,7 @@ final class Caster
             return self::toDate($typeName, $value, $field);
         }
         if (class_exists($typeName) && method_exists($typeName, 'from')) {
-            return self::toDto($typeName, $value);
+            return self::toDto($typeName, $value, $field);
         }
 
         return $value;
@@ -251,7 +252,7 @@ final class Caster
             is_int($value) => $value,
             is_bool($value), is_float($value) => (int) $value,
             is_string($value) && is_numeric(trim($value)) => (int) (float) trim($value),
-            default => throw CastError::message(Messages::make(null, 'The :field field must be an integer.', $field)),
+            default => throw CastError::message(Messages::make(null, 'integer', $field)),
         };
     }
 
@@ -273,7 +274,7 @@ final class Caster
             is_float($value) => $value,
             is_int($value), is_bool($value) => (float) $value,
             is_string($value) && is_numeric($value) => (float) $value,
-            default => throw CastError::message(Messages::make(null, 'The :field field must be a number.', $field)),
+            default => throw CastError::message(Messages::make(null, 'numeric', $field)),
         };
     }
 
@@ -287,22 +288,31 @@ final class Caster
             is_int($value), is_float($value), is_bool($value) => (string) $value,
             $value instanceof \BackedEnum => (string) $value->value,
             $value instanceof \UnitEnum => $value->name,
-            $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i:s'),
+            $value instanceof \DateTimeInterface => $value->format(Exporter::DATE_FORMAT),
             $value instanceof \Stringable => (string) $value,
-            default => throw CastError::message(Messages::make(null, 'The :field field must be a string.', $field)),
+            default => throw CastError::message(Messages::make(null, 'string', $field)),
         };
     }
 
+    /**
+     * Número (ou string numérica) → diferente de zero; string → `1/true/on/yes`;
+     * resto → false.
+     */
     private static function toBool(mixed $value): bool
     {
         if (is_bool($value)) {
             return $value;
         }
+        if (is_int($value) || is_float($value)) {
+            return $value != 0;
+        }
         if (is_string($value)) {
-            return in_array(strtolower(trim($value)), ['1', 'true', 'on', 'yes'], true);
+            $value = strtolower(trim($value));
+
+            return is_numeric($value) ? (float) $value != 0.0 : in_array($value, ['true', 'on', 'yes'], true);
         }
 
-        return $value === 1 || $value === 1.0;
+        return false;
     }
 
     /**
@@ -321,20 +331,28 @@ final class Caster
     }
 
     /**
+     * Input que não tem cara de DTO (escalar, JSON quebrado) é erro de validação
+     * do campo, não exceção de uso do pacote.
+     *
      * @param class-string $class
      *
      * @throws CastError
      */
-    private static function toDto(string $class, mixed $value): mixed
+    private static function toDto(string $class, mixed $value, string $field): mixed
     {
         if ($value instanceof $class) {
             return $value;
         }
+        if (! is_array($value) && ! is_object($value) && ! is_string($value)) {
+            throw CastError::message(Messages::make(null, 'array', $field));
+        }
 
         try {
-            return $class::from($value ?? []);
+            return $class::from($value);
         } catch (PzDtoValidationException $exception) {
             throw new CastError($exception->errors());
+        } catch (PzDtoInputException) {
+            throw CastError::message(Messages::make(null, 'array', $field));
         }
     }
 
@@ -377,7 +395,7 @@ final class Caster
             }
         }
 
-        throw CastError::message(Messages::make(null, 'The selected :field is invalid.', $field));
+        throw CastError::message(Messages::make(null, 'enum', $field));
     }
 
     private static function sameScalar(int|string $caseValue, int|float|string|bool $value): bool
@@ -406,7 +424,8 @@ final class Caster
                 return $target::createFromInterface($value);
             }
             if (is_int($value)) {
-                return new $target('@'.$value);
+                // '@timestamp' nasce em UTC; traz para o fuso da aplicação, como as demais datas.
+                return (new $target('@'.$value))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
             }
             if (is_string($value)) {
                 return new $target(trim($value));
@@ -423,13 +442,16 @@ final class Caster
             // Cai no erro de validação abaixo.
         }
 
-        throw CastError::message(Messages::make(null, 'The :field field must be a valid date.', $field));
+        throw CastError::message(Messages::make(null, 'date', $field));
     }
 
     /**
+     * Converte item a item preservando as chaves (a mesma chave aparece no
+     * caminho do erro: `items.a.qty`).
+     *
      * @param callable(mixed): mixed $castItem
      *
-     * @return array<int, mixed>
+     * @return array<int|string, mixed>
      *
      * @throws CastError
      */
@@ -443,18 +465,18 @@ final class Caster
             $value = self::toArray($value);
         }
         if (! is_array($value)) {
-            throw CastError::message(Messages::make(null, 'The :field field must be an array.', $property->name));
+            throw CastError::message(Messages::make(null, 'array', $property->name));
         }
 
         $result = [];
         $errors = [];
         foreach ($value as $key => $item) {
             if ($item === null) {
-                $result[] = null;
+                $result[$key] = null;
                 continue;
             }
             try {
-                $result[] = $castItem($item);
+                $result[$key] = $castItem($item);
             } catch (CastError $error) {
                 foreach ($error->errors as $path => $messages) {
                     $errors[self::join((string) $key, (string) $path)] = $messages;

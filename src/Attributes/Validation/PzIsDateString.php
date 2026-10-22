@@ -13,10 +13,10 @@ use Puzl\PzDto\Support\Messages;
  * (no mesmo formato). Null e string vazia são ignorados.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsDateString implements ValidationRule
+final class PzIsDateString implements ValidationRule
 {
     public function __construct(
-        public readonly IsDateStringFormat $format = IsDateStringFormat::DATE,
+        public readonly PzIsDateStringFormat $format = PzIsDateStringFormat::DATE,
         public readonly ?string $min = null,
         public readonly ?string $max = null,
         public readonly ?string $message = null,
@@ -31,15 +31,15 @@ final class IsDateString implements ValidationRule
 
         $date = $this->format->parse($value);
         if ($date === null) {
-            return Messages::make($this->message, 'The :field field must be a valid date.', $field);
+            return Messages::make($this->message, 'date', $field);
         }
 
         $replace = ['min' => $this->min ?? '', 'max' => $this->max ?? ''];
         if ($this->min !== null && $date < $this->bound($this->min)) {
-            return Messages::make($this->message, 'The :field field must be a date after or equal to :min.', $field, $replace);
+            return Messages::make($this->message, 'date.after_or_equal', $field, $replace);
         }
         if ($this->max !== null && $date > $this->bound($this->max)) {
-            return Messages::make($this->message, 'The :field field must be a date before or equal to :max.', $field, $replace);
+            return Messages::make($this->message, 'date.before_or_equal', $field, $replace);
         }
 
         return null;
@@ -48,6 +48,6 @@ final class IsDateString implements ValidationRule
     private function bound(string $value): \DateTimeImmutable
     {
         return $this->format->parse($value)
-            ?? throw new PzDtoException(sprintf('#[IsDateString] bound "%s" is not a valid %s date.', $value, $this->format->name));
+            ?? throw new PzDtoException(sprintf('#[PzIsDateString] bound "%s" is not a valid %s date.', $value, $this->format->name));
     }
 }

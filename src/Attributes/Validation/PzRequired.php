@@ -11,7 +11,7 @@ use Puzl\PzDto\Support\Messages;
  * A chave precisa vir com valor: falha para ausente, null, string vazia/em branco ou array vazio.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Required implements ValidationRule
+final class PzRequired implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -20,10 +20,16 @@ final class Required implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        $missing = $raw === null
+        return self::isMissing($raw) ? Messages::make($this->message, 'required', $field) : null;
+    }
+
+    /**
+     * Critério de "não veio" compartilhado com PzRequiredIf/PzRequiredWith.
+     */
+    public static function isMissing(mixed $raw): bool
+    {
+        return $raw === null
             || (is_string($raw) && trim($raw) === '')
             || $raw === [];
-
-        return $missing ? Messages::make($this->message, 'The :field field is required.', $field) : null;
     }
 }

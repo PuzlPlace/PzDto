@@ -12,7 +12,7 @@ use Puzl\PzDto\Support\Messages;
  * Em array, todos os itens precisam estar na lista. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class In implements ValidationRule
+final class PzIn implements ValidationRule
 {
     /**
      * @param array<int, mixed> $values
@@ -34,7 +34,7 @@ final class In implements ValidationRule
             if (! in_array(self::scalar($item), array_map(self::scalar(...), $this->values), $this->strict)) {
                 return Messages::make(
                     $this->message,
-                    'The selected :field is invalid.',
+                    'in',
                     $field,
                     ['values' => implode(', ', array_map(static fn (mixed $v): string => (string) self::scalar($v), $this->values))],
                 );

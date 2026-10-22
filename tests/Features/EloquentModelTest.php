@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Puzl\PzDto\Tests\Features;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\Validation\Required;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\Validation\PzRequired;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
 
@@ -60,6 +61,9 @@ final class EloquentModelTest extends TestCase
 
         self::assertSame('s3cr3t', $dto->secret);
         self::assertSame(99, $dto->total);
+        self::assertSame('ORDER-10', $dto->code, 'Accessor clássico fora de $appends');
+        self::assertSame('Ana!', $dto->label, 'Accessor Attribute::make fora de $appends');
+        self::assertTrue($dto->wasProvided('code', 'label'));
         self::assertSame('Ana', $dto->customer?->name);
         self::assertCount(2, $dto->order_items);
         self::assertContainsOnlyInstancesOf(EloquentItemDto::class, $dto->order_items);
@@ -204,6 +208,16 @@ class EloquentOrder extends Model
     {
         return 99;
     }
+
+    public function getCodeAttribute(): string
+    {
+        return 'ORDER-'.$this->attributes['id'];
+    }
+
+    protected function label(): Attribute
+    {
+        return Attribute::make(get: fn (): string => $this->customer->name.'!');
+    }
 }
 
 class EloquentCustomer extends Model
@@ -219,7 +233,7 @@ class EloquentItem extends Model
 
 final class EloquentCustomerDto extends PzDto
 {
-    #[Required]
+    #[PzRequired]
     public string $name;
 }
 
@@ -242,11 +256,13 @@ final class EloquentOrderDto extends PzDto
     public string $label_date;
     public string $secret;
     public int $total;
-    #[DtoAttribute]
+    public string $code;
+    public string $label;
+    #[PzDtoAttribute]
     public ?EloquentCustomerDto $customer;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public ?EloquentCustomerDto $seller;
-    #[DtoAttribute(EloquentItemDto::class)]
+    #[PzDtoAttribute(EloquentItemDto::class)]
     public array $order_items = [];
 }
 

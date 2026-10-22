@@ -6,24 +6,24 @@ namespace Puzl\PzDto\Tests\Unit\Validation;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\EnumAttribute;
-use Puzl\PzDto\Attributes\Validation\HasExtension;
-use Puzl\PzDto\Attributes\Validation\In;
-use Puzl\PzDto\Attributes\Validation\IsBoolean;
-use Puzl\PzDto\Attributes\Validation\IsDateString;
-use Puzl\PzDto\Attributes\Validation\IsDateStringFormat;
-use Puzl\PzDto\Attributes\Validation\IsEmail;
-use Puzl\PzDto\Attributes\Validation\IsFloat;
-use Puzl\PzDto\Attributes\Validation\IsInt;
-use Puzl\PzDto\Attributes\Validation\IsNotEmpty;
-use Puzl\PzDto\Attributes\Validation\IsString;
-use Puzl\PzDto\Attributes\Validation\IsUrl;
-use Puzl\PzDto\Attributes\Validation\IsUUID;
-use Puzl\PzDto\Attributes\Validation\Length;
-use Puzl\PzDto\Attributes\Validation\Matches;
-use Puzl\PzDto\Attributes\Validation\Max;
-use Puzl\PzDto\Attributes\Validation\Min;
-use Puzl\PzDto\Attributes\Validation\Required;
+use Puzl\PzDto\Attributes\PzEnumAttribute;
+use Puzl\PzDto\Attributes\Validation\PzHasExtension;
+use Puzl\PzDto\Attributes\Validation\PzIn;
+use Puzl\PzDto\Attributes\Validation\PzIsBoolean;
+use Puzl\PzDto\Attributes\Validation\PzIsDateString;
+use Puzl\PzDto\Attributes\Validation\PzIsDateStringFormat;
+use Puzl\PzDto\Attributes\Validation\PzIsEmail;
+use Puzl\PzDto\Attributes\Validation\PzIsFloat;
+use Puzl\PzDto\Attributes\Validation\PzIsInt;
+use Puzl\PzDto\Attributes\Validation\PzIsNotEmpty;
+use Puzl\PzDto\Attributes\Validation\PzIsString;
+use Puzl\PzDto\Attributes\Validation\PzIsUrl;
+use Puzl\PzDto\Attributes\Validation\PzIsUUID;
+use Puzl\PzDto\Attributes\Validation\PzLength;
+use Puzl\PzDto\Attributes\Validation\PzMatches;
+use Puzl\PzDto\Attributes\Validation\PzMax;
+use Puzl\PzDto\Attributes\Validation\PzMin;
+use Puzl\PzDto\Attributes\Validation\PzRequired;
 use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
@@ -163,7 +163,7 @@ final class RulesTest extends TestCase
 
     public function test_validacao_roda_depois_do_cast(): void
     {
-        // "20" vira 20 antes do Min; "5" passa no IsInt (valor bruto tolerante).
+        // "20" vira 20 antes do PzMin; "5" passa no PzIsInt (valor bruto tolerante).
         self::assertSame(20, SignupDto::from(['name' => 'Ana', 'email' => 'a@b.com', 'age' => '20', 'password' => 'x'])->age);
     }
 
@@ -187,66 +187,66 @@ enum RuleEnum: int
 
 final class RulesDto extends PzDto
 {
-    #[Required]
+    #[PzRequired]
     public ?string $required = 'x';
-    #[IsNotEmpty]
+    #[PzIsNotEmpty]
     public mixed $notEmpty = 'x';
-    #[IsString]
+    #[PzIsString]
     public mixed $isString;
-    #[IsInt]
+    #[PzIsInt]
     public ?int $isInt;
-    #[IsFloat]
+    #[PzIsFloat]
     public ?float $isFloat;
-    #[IsBoolean]
+    #[PzIsBoolean]
     public ?bool $isBoolean;
-    #[Min(10)]
+    #[PzMin(10)]
     public ?int $minNumber;
-    #[Max(100)]
+    #[PzMax(100)]
     public ?int $maxNumber;
-    #[Min(3)]
+    #[PzMin(3)]
     public ?string $minString;
-    #[Max(2)]
+    #[PzMax(2)]
     public ?array $maxArray;
-    #[Length(min: 2, max: 5)]
+    #[PzLength(min: 2, max: 5)]
     public ?string $length;
-    #[Matches('/^\d{5}-\d{3}$/')]
+    #[PzMatches('/^\d{5}-\d{3}$/')]
     public ?string $matches;
-    #[IsEmail]
+    #[PzIsEmail]
     public ?string $email;
-    #[IsUrl]
+    #[PzIsUrl]
     public ?string $url;
-    #[IsUUID]
+    #[PzIsUUID]
     public ?string $uuid;
-    #[HasExtension(['pdf', '.xml'])]
+    #[PzHasExtension(['pdf', '.xml'])]
     public ?string $extension;
-    #[IsDateString(min: '2020-01-01', max: '2030-12-31')]
+    #[PzIsDateString(min: '2020-01-01', max: '2030-12-31')]
     public ?string $date;
-    #[IsDateString(IsDateStringFormat::DATETIME)]
+    #[PzIsDateString(PzIsDateStringFormat::DATETIME)]
     public ?string $dateTime;
-    #[IsDateString(IsDateStringFormat::ISO8601)]
+    #[PzIsDateString(PzIsDateStringFormat::ISO8601)]
     public ?string $iso;
-    #[In(['a', 'b'])]
+    #[PzIn(['a', 'b'])]
     public ?string $in;
-    #[EnumAttribute, In([RuleEnum::ONE])]
+    #[PzEnumAttribute, PzIn([RuleEnum::ONE])]
     public ?RuleEnum $inEnum;
 }
 
 final class SignupDto extends PzDto
 {
-    #[Required, Length(min: 3)]
+    #[PzRequired, PzLength(min: 3)]
     public string $name;
-    #[Required, IsEmail]
+    #[PzRequired, PzIsEmail]
     public string $email;
-    #[IsInt, Min(18)]
+    #[PzIsInt, PzMin(18)]
     public int $age;
-    #[Required]
-    #[IsNotEmpty]
+    #[PzRequired]
+    #[PzIsNotEmpty]
     public string $password;
 }
 
 final class CustomMessageDto extends PzDto
 {
-    #[Length(min: 3, max: 5, message: 'Código :field precisa de :min a :max caracteres')]
+    #[PzLength(min: 3, max: 5, message: 'Código :field precisa de :min a :max caracteres')]
     public string $code;
 }
 

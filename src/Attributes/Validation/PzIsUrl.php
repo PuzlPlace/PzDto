@@ -8,10 +8,10 @@ use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Support\Messages;
 
 /**
- * O valor recebido (antes do cast) precisa ser string. Null é ignorado.
+ * URL válida (`FILTER_VALIDATE_URL`). Null e string vazia são ignorados.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsString implements ValidationRule
+final class PzIsUrl implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -20,10 +20,10 @@ final class IsString implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        if ($raw === null || is_string($raw)) {
+        if (! is_string($value) || $value === '' || filter_var($value, FILTER_VALIDATE_URL) !== false) {
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be a string.', $field);
+        return Messages::make($this->message, 'url', $field);
     }
 }

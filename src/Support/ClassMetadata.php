@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Puzl\PzDto\Support;
 
-use Puzl\PzDto\Attributes\TrackChanges;
+use Puzl\PzDto\Attributes\PzTrackChanges;
+use Puzl\PzDto\Contracts\ContextualValidationRule;
 use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\PzDto;
@@ -48,7 +49,7 @@ final class ClassMetadata
     /** @var array<string, int> Posição de cada propriedade (bit em "provided") */
     public readonly array $indexes;
 
-    /** #[TrackChanges] na classe ou em alguma classe-pai? */
+    /** #[PzTrackChanges] na classe ou em alguma classe-pai? */
     public readonly bool $tracksChanges;
 
     /** Bits de "provided" cabem num int (até 63 propriedades)? */
@@ -75,6 +76,10 @@ final class ClassMetadata
         return self::$cache[$class] ??= self::build($class);
     }
 
+    /**
+     * @throws PzDtoException quando o PHP recusa a atribuição (tipo incompatível,
+     *                        `readonly` já inicializada…)
+     */
     public function write(object $instance, PropertyMetadata $property, mixed $value): void
     {
         $writer = self::$writers[$property->declaringClass] ??= \Closure::bind(
@@ -85,7 +90,14 @@ final class ClassMetadata
             $property->declaringClass,
         );
 
-        $writer($instance, $property->name, $value);
+        try {
+            $writer($instance, $property->name, $value);
+        } catch (\Error $error) {
+            throw new PzDtoException(
+                sprintf('Cannot assign %s::$%s: %s', $instance::class, $property->name, $error->getMessage()),
+                previous: $error,
+            );
+        }
     }
 
     /**
@@ -109,7 +121,7 @@ final class ClassMetadata
     private static function hasTrackChanges(\ReflectionClass $reflection): bool
     {
         for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
-            if ($current->getAttributes(TrackChanges::class) !== []) {
+            if ($current->getAttributes(PzTrackChanges::class) !== []) {
                 return true;
             }
         }
@@ -167,16 +179,16 @@ final class ClassMetadata
             // Casa pelo nome curto para aceitar também App\Helpers\DtoAttribute e
             // App\Helpers\EnumAttribute da FromArrayTrait durante a migração.
             $shortName = substr((string) strrchr('\\'.$attribute->getName(), '\\'), 1);
-            if ($shortName === 'DtoAttribute') {
-                $dtoClass = self::conversionTarget($property, $attribute, 'DtoAttribute');
-            } elseif ($shortName === 'EnumAttribute') {
-                $enumClass = self::conversionTarget($property, $attribute, 'EnumAttribute');
+            if ($shortName === 'PzDtoAttribute' || $shortName === 'DtoAttribute') {
+                $dtoClass = self::conversionTarget($property, $attribute, 'PzDtoAttribute');
+            } elseif ($shortName === 'PzEnumAttribute' || $shortName === 'EnumAttribute') {
+                $enumClass = self::conversionTarget($property, $attribute, 'PzEnumAttribute');
             }
         }
 
         if ($enumClass !== null && ! enum_exists($enumClass)) {
             throw new PzDtoException(sprintf(
-                '#[EnumAttribute] of %s::$%s points to "%s", which is not an enum.',
+                '#[PzEnumAttribute] of %s::$%s points to "%s", which is not an enum.',
                 $property->getDeclaringClass()->getName(),
                 $property->getName(),
                 $enumClass,
@@ -184,17 +196,21 @@ final class ClassMetadata
         }
         if ($dtoClass !== null && ! method_exists($dtoClass, 'from')) {
             throw new PzDtoException(sprintf(
-                '#[DtoAttribute] of %s::$%s points to "%s", which has no static from().',
+                '#[PzDtoAttribute] of %s::$%s points to "%s", which has no static from().',
                 $property->getDeclaringClass()->getName(),
                 $property->getName(),
                 $dtoClass,
             ));
         }
 
-        $rules = array_map(
-            static fn (\ReflectionAttribute $attribute): ValidationRule => $attribute->newInstance(),
-            $property->getAttributes(ValidationRule::class, \ReflectionAttribute::IS_INSTANCEOF),
-        );
+        // Na ordem de declaração, misturando regras simples e contextuais.
+        $rules = [];
+        foreach ($property->getAttributes() as $attribute) {
+            if (is_a($attribute->getName(), ValidationRule::class, true)
+                || is_a($attribute->getName(), ContextualValidationRule::class, true)) {
+                $rules[] = $attribute->newInstance();
+            }
+        }
 
         return new PropertyMetadata(
             name: $property->getName(),
@@ -210,13 +226,13 @@ final class ClassMetadata
     }
 
     /**
-     * Lê o destino de #[DtoAttribute]/#[EnumAttribute] sem instanciar o atributo
+     * Lê o destino de #[PzDtoAttribute]/#[PzEnumAttribute] sem instanciar o atributo
      * (a classe legada pode não existir no projeto).
      */
     private static function conversionTarget(\ReflectionProperty $property, \ReflectionAttribute $attribute, string $label): string
     {
         $arguments = $attribute->getArguments();
-        $target = (string) ($arguments['namespace'] ?? $arguments[0] ?? '');
+        $target = (string) ($arguments['class'] ?? $arguments['namespace'] ?? $arguments[0] ?? '');
 
         if ($target !== '') {
             return ltrim($target, '\\');

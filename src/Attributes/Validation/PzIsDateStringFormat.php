@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Puzl\PzDto\Attributes\Validation;
 
 /**
- * Formatos aceitos por {@see IsDateString}.
+ * Formatos aceitos por {@see PzIsDateString}.
  */
-enum IsDateStringFormat
+enum PzIsDateStringFormat
 {
     /** `Y-m-d` */
     case DATE;

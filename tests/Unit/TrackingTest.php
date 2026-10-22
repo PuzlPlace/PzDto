@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Puzl\PzDto\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\TrackChanges;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\PzTrackChanges;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\PzDto;
 
@@ -283,16 +283,16 @@ final class TrackedDto extends PzDto
     public string $name;
     public float $amount;
     public ?float $discount;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public TrackedAddressDto $address;
     protected string $internal = '';
 }
 
-#[TrackChanges]
+#[PzTrackChanges]
 class AlwaysTrackedDto extends PzDto
 {
     public string $name;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public TrackedAddressDto $address;
 }
 
@@ -303,14 +303,14 @@ final class AlwaysTrackedChildDto extends AlwaysTrackedDto
 
 final class PlainParentDto extends PzDto
 {
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public AlwaysTrackedDto $child;
     public AlwaysTrackedDto $blank;
 }
 
 final class TrackedListDto extends PzDto
 {
-    #[DtoAttribute(TrackedAddressDto::class)]
+    #[PzDtoAttribute(TrackedAddressDto::class)]
     public array $items = [];
     public ProductKind $kind;
     public \DateTimeImmutable $at;

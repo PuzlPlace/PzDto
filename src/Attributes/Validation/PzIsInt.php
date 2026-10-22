@@ -8,10 +8,11 @@ use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Support\Messages;
 
 /**
- * E-mail válido (`FILTER_VALIDATE_EMAIL`). Null e string vazia são ignorados.
+ * O valor recebido (antes do cast) precisa ser inteiro: `5` ou `"5"` passam;
+ * `"12abc"`, `"1.5"` e `1.5` falham. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsEmail implements ValidationRule
+final class PzIsInt implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -20,10 +21,10 @@ final class IsEmail implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        if (! is_string($value) || $value === '' || filter_var($value, FILTER_VALIDATE_EMAIL) !== false) {
+        if ($raw === null || is_int($raw) || (is_string($raw) && preg_match('/^\s*[+-]?\d+\s*$/', $raw) === 1)) {
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be a valid email address.', $field);
+        return Messages::make($this->message, 'integer', $field);
     }
 }

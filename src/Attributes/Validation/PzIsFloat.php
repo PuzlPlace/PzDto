@@ -12,7 +12,7 @@ use Puzl\PzDto\Support\Messages;
  * `"1,5"` passam; `"1.5abc"` falha. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsFloat implements ValidationRule
+final class PzIsFloat implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -28,6 +28,6 @@ final class IsFloat implements ValidationRule
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be a number.', $field);
+        return Messages::make($this->message, 'numeric', $field);
     }
 }

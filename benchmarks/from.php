@@ -11,8 +11,8 @@ spl_autoload_register(function (string $class) use ($root) {
 });
 
 use Puzl\PzDto\PzDto;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\EnumAttribute;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\PzEnumAttribute;
 
 enum BStatus: int { case A = 1; case B = 2; }
 final class BItem extends PzDto { public string $sku; public int $qty; public float $price; }
@@ -23,9 +23,9 @@ final class BRow extends PzDto {
     public float $d1; public float $d2; public float $d3; public float $d4; public float $d5;
     public ?int $n1; public ?int $n2; public ?string $n3; public ?string $n4; public ?float $n5;
     public bool $b1; public bool $b2; public array $a1; public mixed $m1; public ?\DateTimeImmutable $dt;
-    #[EnumAttribute] public BStatus $st; public string $x1; public string $x2; public string $x3; public string $x4;
-    #[DtoAttribute] public BAddress $address;
-    #[DtoAttribute(BItem::class)] public array $items;
+    #[PzEnumAttribute] public BStatus $st; public string $x1; public string $x2; public string $x3; public string $x4;
+    #[PzDtoAttribute] public BAddress $address;
+    #[PzDtoAttribute(BItem::class)] public array $items;
 }
 
 $row = [];

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Puzl\PzDto;
 
 use Puzl\PzDto\Exceptions\PzDtoException;
+use Puzl\PzDto\Exceptions\PzDtoInputException;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\Support\Bits;
 use Puzl\PzDto\Support\Caster;
 use Puzl\PzDto\Support\CastError;
 use Puzl\PzDto\Support\ClassMetadata;
 use Puzl\PzDto\Support\Comparator;
+use Puzl\PzDto\Support\Exporter;
 use Puzl\PzDto\Support\Messages;
 use Puzl\PzDto\Support\ModelReader;
 use Puzl\PzDto\Support\Path;
@@ -21,16 +23,16 @@ use Puzl\PzDto\Support\Path;
  * ```php
  * abstract class BaseDto extends PzDto {}
  *
- * class FinanceCreateDto extends BaseDto
+ * class OrderCreateDto extends BaseDto
  * {
- *     #[Required, Length(max: 120)]
+ *     #[PzRequired, PzLength(max: 120)]
  *     public string $description;
  *
- *     #[DtoAttribute(FinanceItemDto::class)]
+ *     #[PzDtoAttribute(OrderItemDto::class)]
  *     public array $items;
  * }
  *
- * $dto = FinanceCreateDto::from($request->validated());
+ * $dto = OrderCreateDto::from($request->validated());
  * ```
  */
 abstract class PzDto implements \JsonSerializable
@@ -55,7 +57,7 @@ abstract class PzDto implements \JsonSerializable
      * @param array<int, string>|null $destructuring Chaves cujo conteúdo (array) é mesclado na raiz
      *
      * @throws PzDtoValidationException quando algum campo não converte ou não passa nas regras
-     * @throws PzDtoException quando a entrada não pode ser lida
+     * @throws PzDtoInputException quando a entrada não pode ser lida (JSON inválido, escalar)
      */
     public static function from(mixed $values, ?array $destructuring = null): static
     {
@@ -185,21 +187,14 @@ abstract class PzDto implements \JsonSerializable
                 continue;
             }
 
-            foreach ($validate ? $property->rules : [] as $rule) {
-                $message = $rule->validate($value, $raw, $name);
-                if ($message !== null) {
-                    $errors[$name][] = $message;
+            if ($validate && $property->rules !== []) {
+                $messages = $property->validate($value, $raw, $values);
+                if ($messages !== []) {
+                    $errors[$name] = $messages;
                 }
             }
 
-            try {
-                $metadata->write($instance, $property, $value);
-            } catch (\TypeError $error) {
-                throw new PzDtoException(
-                    sprintf('Cannot assign %s::$%s: %s', static::class, $name, $error->getMessage()),
-                    previous: $error,
-                );
-            }
+            $metadata->write($instance, $property, $value);
         }
 
         if ($validate && $errors !== []) {
@@ -216,6 +211,7 @@ abstract class PzDto implements \JsonSerializable
 
     /**
      * Revalida o estado atual do objeto (útil depois de alterar propriedades à mão).
+     * Propriedade nunca inicializada conta como "não veio" (#[PzRequired] falha).
      *
      * @throws PzDtoValidationException
      */
@@ -223,6 +219,7 @@ abstract class PzDto implements \JsonSerializable
     {
         $metadata = ClassMetadata::for(static::class);
         $errors = [];
+        $input = null;
 
         foreach ($metadata->properties as $name => $property) {
             if ($property->rules === []) {
@@ -230,15 +227,12 @@ abstract class PzDto implements \JsonSerializable
             }
 
             [$initialized, $value] = $metadata->read($this, $property);
-            if (! $initialized) {
-                continue;
-            }
+            $value = $initialized ? $value : null;
+            $input ??= $this->toArray();
 
-            foreach ($property->rules as $rule) {
-                $message = $rule->validate($value, $value, $name);
-                if ($message !== null) {
-                    $errors[$name][] = $message;
-                }
+            $messages = $property->validate($value, $value, $input);
+            if ($messages !== []) {
+                $errors[$name] = $messages;
             }
         }
 
@@ -248,9 +242,8 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * Propriedades públicas como array (enums viram o value; DTOs aninhados, arrays).
-     *
-     * Datas saem como string `Y-m-d H:i:s` (fuso do próprio objeto).
+     * Propriedades públicas como array: enum backed vira o `value`, enum puro o
+     * `name`; DTO aninhado vira array; data vira `Y-m-d H:i:s` (fuso do próprio objeto).
      *
      * Sempre traz todas as públicas. Campo nunca preenchido (ex.: `new` com atribuição
      * parcial) sai com o que o create() daria sem a chave: default; null se nullable;
@@ -260,12 +253,19 @@ abstract class PzDto implements \JsonSerializable
      */
     public function toArray(): array
     {
-        return json_decode($this->toJson(), true, 512, JSON_THROW_ON_ERROR);
+        $metadata = ClassMetadata::for(static::class);
+        $data = [];
+
+        foreach ($metadata->publicNames as $name) {
+            $data[$name] = Exporter::value($this->currentValue($metadata, $name));
+        }
+
+        return $data;
     }
 
-    public function toJson(): string
+    public function toJson(int $flags = 0): string
     {
-        return json_encode($this, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
+        return json_encode($this->toArray(), $flags | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -273,14 +273,7 @@ abstract class PzDto implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        $metadata = ClassMetadata::for(static::class);
-        $data = [];
-
-        foreach ($metadata->publicNames as $name) {
-            $data[$name] = self::exportValue($this->currentValue($metadata, $name));
-        }
-
-        return $data;
+        return $this->toArray();
     }
 
     /**
@@ -346,7 +339,7 @@ abstract class PzDto implements \JsonSerializable
      */
     public function toArrayProvided(): array
     {
-        return self::jsonRoundTrip($this->exportProvided());
+        return $this->exportProvided();
     }
 
     /**
@@ -490,10 +483,10 @@ abstract class PzDto implements \JsonSerializable
     /**
      * Liga o rastreamento de alterações: o estado atual vira o original (inclusive
      * nos DTOs aninhados). Necessário antes de isDirty()/getDirty()/getOriginal(),
-     * a menos que a classe tenha #[TrackChanges] ou o DTO venha de fromTracked().
+     * a menos que a classe tenha #[PzTrackChanges] ou o DTO venha de fromTracked().
      *
      * ```php
-     * $dto = FinanceUpdateDto::from($dados)->trackChanges();
+     * $dto = ProductUpdateDto::from($dados)->trackChanges();
      * ```
      */
     public function trackChanges(): static
@@ -566,7 +559,7 @@ abstract class PzDto implements \JsonSerializable
     {
         $this->assertTracking();
 
-        $original = Path::flatten(self::jsonRoundTrip($this->exportOriginal()));
+        $original = Path::flatten($this->exportOriginal());
         $current = Path::flatten($this->toArray());
 
         $dirty = [];
@@ -584,6 +577,10 @@ abstract class PzDto implements \JsonSerializable
 
     /**
      * Valor original de um campo público, ou todos (`[campo => valor]`).
+     *
+     * O snapshot é raso: para DTO aninhado volta a mesma instância (já com as
+     * alterações dela). Para o valor original de dentro, use
+     * `$dto->address->getOriginal('city')` ou compare com getDirtyPaths().
      */
     public function getOriginal(?string $field = null): mixed
     {
@@ -655,16 +652,62 @@ abstract class PzDto implements \JsonSerializable
     }
 
     /**
-     * Datas saem como `Y-m-d H:i:s` no fuso do próprio objeto (pronto para
-     * `$model->fill()`), e não como `{date, timezone_type, timezone}`.
+     * Cópia profunda: DTOs aninhados (diretos ou em lista) são clonados também, e o
+     * snapshot do rastreamento passa a apontar para os clones. Alterar o clone
+     * nunca suja o original.
      */
-    private static function exportValue(mixed $value): mixed
+    public function __clone(): void
     {
-        if ($value instanceof \DateTimeInterface) {
-            return $value->format('Y-m-d H:i:s');
+        $metadata = ClassMetadata::for(static::class);
+        $clones = new \SplObjectStorage();
+
+        foreach ($metadata->properties as $property) {
+            [$initialized, $value] = $metadata->read($this, $property);
+            if (! $initialized || ! self::containsDto($value)) {
+                continue;
+            }
+            try {
+                $metadata->write($this, $property, self::cloneValue($value, $clones));
+            } catch (PzDtoException) {
+                // readonly já inicializada (PHP < 8.3 não permite reatribuir no __clone): fica compartilhada.
+            }
+        }
+
+        if ($this->pzOriginal !== null) {
+            $this->pzOriginal = array_map(static fn (mixed $value): mixed => self::cloneValue($value, $clones), $this->pzOriginal);
+        }
+    }
+
+    private static function containsDto(mixed $value): bool
+    {
+        if ($value instanceof self) {
+            return true;
         }
         if (is_array($value)) {
-            return array_map(self::exportValue(...), $value);
+            foreach ($value as $item) {
+                if (self::containsDto($item)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param \SplObjectStorage<self, self> $clones Mesma instância de origem → mesmo clone
+     */
+    private static function cloneValue(mixed $value, \SplObjectStorage $clones): mixed
+    {
+        if ($value instanceof self) {
+            if (! $clones->contains($value)) {
+                $clones[$value] = clone $value;
+            }
+
+            return $clones[$value];
+        }
+        if (is_array($value)) {
+            return array_map(static fn (mixed $item): mixed => self::cloneValue($item, $clones), $value);
         }
 
         return $value;
@@ -799,6 +842,7 @@ abstract class PzDto implements \JsonSerializable
         $metadata = ClassMetadata::for(static::class);
         $pending = [];
         $errors = [];
+        $input = null;
 
         foreach ($values as $name => $raw) {
             $name = (string) $name;
@@ -818,10 +862,12 @@ abstract class PzDto implements \JsonSerializable
                 }
                 continue;
             }
-            foreach ($property->rules as $rule) {
-                $message = $rule->validate($value, $raw, $name);
-                if ($message !== null) {
-                    $errors[$name][] = $message;
+            if ($property->rules !== []) {
+                // Regras contextuais enxergam o estado atual mais o que está chegando.
+                $input ??= array_replace($this->toArray(), $values);
+                $messages = $property->validate($value, $raw, $input);
+                if ($messages !== []) {
+                    $errors[$name] = $messages;
                 }
             }
             $pending[$name] = $value;
@@ -829,6 +875,11 @@ abstract class PzDto implements \JsonSerializable
 
         if ($errors !== []) {
             throw new PzDtoValidationException($errors, static::class);
+        }
+
+        // Instância vinda de `new` nasce com int 0; acima de 63 propriedades precisa do bitmap.
+        if (! $metadata->bitsAsInt && is_int($this->pzProvided)) {
+            $this->pzProvided = Bits::empty(count($metadata->properties));
         }
 
         foreach ($pending as $name => $value) {
@@ -864,7 +915,7 @@ abstract class PzDto implements \JsonSerializable
             return array_map(self::exportProvidedValue(...), $value);
         }
 
-        return self::exportValue($value);
+        return Exporter::value($value);
     }
 
     /**
@@ -887,25 +938,53 @@ abstract class PzDto implements \JsonSerializable
     private static function exportOriginalValue(mixed $value): mixed
     {
         if ($value instanceof self) {
-            return $value->isTrackingChanges() ? $value->exportOriginal() : $value->jsonSerialize();
+            return $value->isTrackingChanges() ? $value->exportOriginal() : $value->toArray();
         }
         if (is_array($value)) {
             return array_map(self::exportOriginalValue(...), $value);
         }
 
-        return self::exportValue($value);
+        return Exporter::value($value);
     }
 
     /**
-     * @return array<mixed>
+     * Idioma das mensagens padrão de conversão e validação (`en` ou `pt_BR`).
+     * Chame uma vez no boot da aplicação: fixo, ou um callable consultado a cada
+     * mensagem (segue o locale da requisição; idioma desconhecido cai em `en`).
+     *
+     * ```php
+     * PzDto::useLocale('pt_BR');
+     * PzDto::useLocale(fn () => app()->getLocale());
+     * ```
+     *
+     * @param string|callable(): string $locale
+     *
+     * @throws PzDtoException
      */
-    private static function jsonRoundTrip(mixed $data): array
+    public static function useLocale(string|callable $locale): void
     {
-        return json_decode(json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        Messages::useLocale($locale);
     }
 
     /**
-     * Registra um tradutor para as mensagens customizadas dos atributos de validação.
+     * Sobrescreve mensagens padrão por chave (`required`, `integer`, `min.string`…;
+     * ver `Messages::LOCALES`). Vale por cima do idioma ativo.
+     *
+     * ```php
+     * PzDto::useMessages(['required' => 'Informe :field.']);
+     * ```
+     *
+     * @param array<string, string> $messages
+     *
+     * @throws PzDtoException
+     */
+    public static function useMessages(array $messages): void
+    {
+        Messages::useMessages($messages);
+    }
+
+    /**
+     * Registra um tradutor para as mensagens customizadas (`message:`) dos atributos.
      *
      * ```php
      * PzDto::translateMessagesUsing(fn (string $key, array $replace) => trans($key, $replace));
@@ -931,13 +1010,16 @@ abstract class PzDto implements \JsonSerializable
             try {
                 $decoded = json_decode($values, true, 512, JSON_THROW_ON_ERROR);
             } catch (\JsonException $exception) {
-                throw new PzDtoException(
+                throw new PzDtoInputException(
                     sprintf('Invalid JSON given to %s::from(): %s', static::class, $exception->getMessage()),
                     previous: $exception,
                 );
             }
+            if ($decoded === null) {
+                return []; // JSON "null" = sem dados, como from(null)
+            }
             if (! is_array($decoded)) {
-                throw new PzDtoException(sprintf('JSON given to %s::from() must be an object or array.', static::class));
+                throw new PzDtoInputException(sprintf('JSON given to %s::from() must be an object or array.', static::class));
             }
 
             return $decoded;
@@ -949,6 +1031,7 @@ abstract class PzDto implements \JsonSerializable
 
         if ($values instanceof self) {
             // Só as públicas (como no toArray), preservando objetos (DateTime, enum, DTO).
+            // Todas contam como "recebidas"; para manter o provided do original use from($dto->toArrayProvided()).
             $public = [];
             foreach ((new \ReflectionObject($values))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
                 if (! $property->isStatic() && $property->isInitialized($values)) {
@@ -967,7 +1050,7 @@ abstract class PzDto implements \JsonSerializable
             return method_exists($values, 'toArray') ? (array) $values->toArray() : get_object_vars($values);
         }
 
-        throw new PzDtoException(sprintf(
+        throw new PzDtoInputException(sprintf(
             '%s::from() expects array, object or JSON string, %s given.',
             static::class,
             get_debug_type($values),

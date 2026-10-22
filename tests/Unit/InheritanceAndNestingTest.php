@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Puzl\PzDto\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\EnumAttribute;
-use Puzl\PzDto\Attributes\Validation\IsNotEmpty;
-use Puzl\PzDto\Attributes\Validation\Max;
-use Puzl\PzDto\Attributes\Validation\Required;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\PzEnumAttribute;
+use Puzl\PzDto\Attributes\Validation\PzIsNotEmpty;
+use Puzl\PzDto\Attributes\Validation\PzMax;
+use Puzl\PzDto\Attributes\Validation\PzRequired;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
@@ -18,25 +18,25 @@ final class InheritanceAndNestingTest extends TestCase
 {
     public function test_filho_de_base_do_projeto_retorna_a_propria_classe(): void
     {
-        $dto = FinanceCreateDto::from(['description' => 'Aluguel', 'company_id' => '7']);
+        $dto = OrderCreateDto::from(['description' => 'Aluguel', 'company_id' => '7']);
 
-        self::assertInstanceOf(FinanceCreateDto::class, $dto);
+        self::assertInstanceOf(OrderCreateDto::class, $dto);
         self::assertSame('Aluguel', $dto->description);
         self::assertSame(7, $dto->company_id);
     }
 
     public function test_tres_niveis_de_heranca_com_private_do_pai(): void
     {
-        $dto = FinanceSpecialCreateDto::from(['description' => 'x', 'company_id' => 1, 'secret' => 'abc', 'extra' => '2']);
+        $dto = OrderSpecialCreateDto::from(['description' => 'x', 'company_id' => 1, 'secret' => 'abc', 'extra' => '2']);
 
-        self::assertInstanceOf(FinanceSpecialCreateDto::class, $dto);
+        self::assertInstanceOf(OrderSpecialCreateDto::class, $dto);
         self::assertSame(2, $dto->extra);
         self::assertSame('abc', $dto->secret());
     }
 
     public function test_filha_pode_redeclarar_propriedade_do_pai(): void
     {
-        self::assertSame('override', FinanceOverrideDto::from([])->description);
+        self::assertSame('override', OrderOverrideDto::from([])->description);
     }
 
     public function test_create_em_classe_abstrata_lanca(): void
@@ -49,7 +49,7 @@ final class InheritanceAndNestingTest extends TestCase
     public function test_validacao_declarada_no_pai_vale_no_filho(): void
     {
         try {
-            FinanceSpecialCreateDto::from(['company_id' => 1]);
+            OrderSpecialCreateDto::from(['company_id' => 1]);
             self::fail('Deveria lançar');
         } catch (PzDtoValidationException $exception) {
             self::assertArrayHasKey('description', $exception->errors());
@@ -135,9 +135,9 @@ final class InheritanceAndNestingTest extends TestCase
             self::fail('Deveria lançar');
         } catch (PzDtoValidationException $exception) {
             $errors = $exception->errors();
-            self::assertArrayHasKey('first', $errors);   // IsNotEmpty depois do EnumAttribute
-            self::assertArrayHasKey('last', $errors);    // IsNotEmpty antes do EnumAttribute
-            self::assertArrayHasKey('items', $errors);   // Max(2)
+            self::assertArrayHasKey('first', $errors);   // PzIsNotEmpty depois do PzEnumAttribute
+            self::assertArrayHasKey('last', $errors);    // PzIsNotEmpty antes do PzEnumAttribute
+            self::assertArrayHasKey('items', $errors);   // PzMax(2)
         }
     }
 
@@ -184,14 +184,14 @@ abstract class AppBaseDto extends PzDto
 {
 }
 
-class FinanceCreateDto extends AppBaseDto
+class OrderCreateDto extends AppBaseDto
 {
-    #[Required]
+    #[PzRequired]
     public string $description;
     public int $company_id;
 }
 
-class FinanceSpecialCreateDto extends FinanceCreateDto
+class OrderSpecialCreateDto extends OrderCreateDto
 {
     public int $extra = 0;
     private string $secret = '';
@@ -202,35 +202,35 @@ class FinanceSpecialCreateDto extends FinanceCreateDto
     }
 }
 
-class FinanceOverrideDto extends FinanceCreateDto
+class OrderOverrideDto extends OrderCreateDto
 {
     public string $description = 'override';
 }
 
 final class CustomerDto extends PzDto
 {
-    #[Required]
+    #[PzRequired]
     public string $name;
 }
 
 final class ItemDto extends PzDto
 {
-    #[Required]
+    #[PzRequired]
     public string $sku;
     public int $qty;
 }
 
 final class OrderDto extends PzDto
 {
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public CustomerDto $customer;
     public CustomerDto $billing;
     public ?CustomerDto $shipping;
-    #[DtoAttribute(ItemDto::class)]
+    #[PzDtoAttribute(ItemDto::class)]
     public array $items = [];
-    #[EnumAttribute]
+    #[PzEnumAttribute]
     public ?OrderStatus $status;
-    #[EnumAttribute(OrderStatus::class)]
+    #[PzEnumAttribute(OrderStatus::class)]
     public array $statuses = [];
     public OrderStatus $typed = OrderStatus::OPEN;
     public Size $pure = Size::SMALL;
@@ -238,15 +238,15 @@ final class OrderDto extends PzDto
 
 final class MultiAttributeDto extends PzDto
 {
-    #[EnumAttribute, IsNotEmpty]
+    #[PzEnumAttribute, PzIsNotEmpty]
     public ?OrderStatus $first;
 
-    #[IsNotEmpty]
-    #[EnumAttribute]
+    #[PzIsNotEmpty]
+    #[PzEnumAttribute]
     public ?OrderStatus $last;
 
-    #[Max(2)]
-    #[DtoAttribute(ItemDto::class)]
+    #[PzMax(2)]
+    #[PzDtoAttribute(ItemDto::class)]
     public array $items = [];
 }
 
@@ -261,7 +261,7 @@ final class LegacyAttributesDto extends PzDto
 
 final class BrokenDeclarationDto extends PzDto
 {
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public array $items;
 }
 

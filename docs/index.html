@@ -1,281 +1,121 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="PzDto — DTOs por herança (extends PzDto) com cast automático, aninhamento de DTO/enum e validações por atributo.">
-  <title>PzDto — Guia do pacote</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PzDto — DTOs por herança (extends PzDto) com cast automático, aninhamento de DTO/enum e rastreamento do que veio e do que mudou.">
+  <title>PzDto — Guia do Desenvolvedor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* Paleta e tipografia do app da Puzl (mesmo padrão de puzl-account/docs). */
     :root {
-      --bg: #f8fafc;
+      --bg: #f6f5f5;
       --surface: #ffffff;
-      --text: #0f172a;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --accent: #0d9488;
-      --accent-hover: #0f766e;
-      --accent-soft: #ccfbf1;
-      --code-bg: #1e293b;
-      --code-text: #e2e8f0;
-      --warn-bg: #fffbeb;
-      --warn-border: #f59e0b;
-      --danger-bg: #fef2f2;
-      --danger-border: #ef4444;
-      --success-bg: #ecfdf5;
-      --success-border: #10b981;
-      --info-bg: #eff6ff;
-      --info-border: #3b82f6;
-      --sidebar-w: 260px;
-      --radius: 10px;
-      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+      --text: #334155;        /* slate-700 */
+      --heading: #0f172a;     /* slate-900 */
+      --muted: #64748b;       /* slate-500 */
+      --faint: #94a3b8;       /* slate-400 */
+      --border: #e8e8e8;
+      --border-2: #e2e8f0;    /* slate-200 */
+      --brand-50: #eef6fc;
+      --brand-100: #d6e9f7;
+      --brand-200: #aed3ef;
+      --brand-500: #2a85cc;
+      --brand-600: #1a70b7;
+      --brand-700: #155a93;
+      --brand-900: #0c3354;
+      --code-bg: #0f172a;     /* slate-900 */
+      --code-text: #f1f5f9;   /* slate-100 */
+      --inline-bg: #eef1f4;
+      --inline-border: #dde3ea;
+      --amber-bg: #fffbeb; --amber-border: #fcd34d; --amber-text: #78350f;
+      --red-bg: #fef2f2;   --red-border: #fca5a5;   --red-text: #7f1d1d;
+      --green-bg: #ecfdf5; --green-border: #6ee7b7; --green-text: #064e3b;
+      --radius: .75rem;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 5rem;
-    }
-
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
     body {
       margin: 0;
-      font-family: 'DM Sans', system-ui, sans-serif;
-      font-size: 1.05rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 1rem;
       line-height: 1.65;
       color: var(--text);
       background: var(--bg);
+      overflow-x: clip;
+      -webkit-font-smoothing: antialiased;
     }
+    h1, h2, h3, h4 { font-family: 'Fredoka', 'Inter', system-ui, sans-serif; color: var(--heading); letter-spacing: -0.01em; }
+    a { color: var(--brand-600); }
+    a:hover { color: var(--brand-700); }
+    strong { font-weight: 600; color: var(--heading); }
+    p { margin: 0 0 1rem; }
+    ul, ol { margin: 0 0 1rem; padding-left: 1.35rem; }
+    li { margin-bottom: .35rem; }
+
+    /* Barra de progresso de leitura */
+    #progress { position: fixed; top: 0; left: 0; height: 4px; background: var(--brand-600); z-index: 50; width: 0; transition: width .1s linear; }
+
+    /* Topo */
+    .topbar { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.9); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-2); }
+    .topbar-inner { max-width: 80rem; margin: 0 auto; padding: 0 1rem; height: 3.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: .625rem; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 1.125rem; color: var(--heading); text-decoration: none; }
+    .brand-mark { width: 2rem; height: 2rem; border-radius: .5rem; background: var(--brand-600); color: #fff; display: grid; place-items: center; font-size: .9rem; }
+    .brand-pill { font-family: 'Inter', sans-serif; font-size: .75rem; font-weight: 500; color: var(--muted); border: 1px solid var(--border-2); border-radius: 999px; padding: .125rem .5rem; margin-left: .25rem; }
+    .menu-toggle { display: none; font: inherit; font-size: .875rem; font-weight: 500; border: 1px solid #cbd5e1; border-radius: .5rem; padding: .375rem .75rem; background: #fff; cursor: pointer; color: var(--text); }
 
     /* Layout */
-    .layout {
-      display: grid;
-      grid-template-columns: var(--sidebar-w) 1fr;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 1.5rem 0;
-    }
-
-    .sidebar-brand {
-      padding: 0 1.25rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1rem;
-    }
-
-    .sidebar-brand h1 {
-      margin: 0;
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: -0.02em;
-    }
-
-    .sidebar-brand p {
-      margin: 0.25rem 0 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .nav-group {
-      margin-bottom: 0.5rem;
-    }
-
-    .nav-group-title {
-      padding: 0.5rem 1.25rem 0.25rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-    }
-
-    .sidebar a {
-      display: block;
-      padding: 0.35rem 1.25rem;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      text-decoration: none;
-      transition: color 0.15s, background 0.15s;
-    }
-
-    .sidebar a:hover,
-    .sidebar a.active {
-      color: var(--accent);
-      background: var(--accent-soft);
-    }
-
-    .main {
-      max-width: 52rem;
-      padding: 2.5rem 3rem 4rem;
-    }
+    .layout { max-width: 80rem; margin: 0 auto; padding: 0 1rem; display: grid; grid-template-columns: 260px 1fr; gap: 2.5rem; }
+    .sidebar { position: sticky; top: 5rem; height: calc(100vh - 6rem); overflow-y: auto; padding: 1.5rem 0; font-size: .875rem; }
+    .sidebar-brand { display: none; }
+    .nav-group { margin-bottom: 1rem; }
+    .nav-group-title { padding: 0 .75rem; margin-bottom: .5rem; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+    .sidebar a { display: block; padding: .375rem .75rem; border-radius: .375rem; color: #475569; text-decoration: none; transition: background .15s, color .15s; }
+    .sidebar a:hover { color: var(--heading); background: #fff; }
+    .sidebar a.active { color: var(--brand-700); background: var(--brand-50); font-weight: 600; }
+    .main { max-width: 48rem; min-width: 0; padding: 2.5rem 0 4rem; }
 
     /* Hero */
-    .hero {
-      margin-bottom: 3rem;
-      padding: 2.5rem;
-      background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
-      border-radius: var(--radius);
-      color: #fff;
-      box-shadow: var(--shadow);
-    }
+    .hero { margin-bottom: 4rem; }
+    .hero h2 { margin: 0 0 1rem; font-size: 2.25rem; font-weight: 700; line-height: 1.15; border: 0; padding: 0; }
+    .hero h2::before { content: none; }
+    .hero p { font-size: 1.125rem; color: #475569; max-width: 40rem; }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
+    .tag { font-size: .75rem; font-weight: 500; padding: .2rem .65rem; background: #fff; border: 1px solid var(--border-2); color: var(--muted); border-radius: 999px; }
 
-    .hero h2 {
-      margin: 0 0 0.75rem;
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 1.2;
-    }
-
-    .hero p {
-      margin: 0;
-      font-size: 1.1rem;
-      opacity: 0.92;
-      max-width: 36rem;
-    }
-
-    .hero-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 1.25rem;
-    }
-
-    .tag {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.25rem 0.65rem;
-      background: rgba(255,255,255,0.2);
-      border-radius: 999px;
-    }
-
-    /* Typography */
-    section { margin-bottom: 3rem; }
-
-    h2 {
-      font-size: 1.65rem;
-      font-weight: 700;
-      margin: 0 0 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid var(--accent-soft);
-      letter-spacing: -0.02em;
-    }
-
-    h3 {
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin: 1.75rem 0 0.75rem;
-      color: var(--text);
-    }
-
-    h4 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 1.25rem 0 0.5rem;
-    }
-
-    p { margin: 0 0 1rem; }
-
-    ul, ol {
-      margin: 0 0 1rem;
-      padding-left: 1.35rem;
-    }
-
-    li { margin-bottom: 0.35rem; }
-
-    a { color: var(--accent); }
-    a:hover { color: var(--accent-hover); }
-
-    strong { font-weight: 600; }
+    /* Seções numeradas como no guia do Puzl Account */
+    .main { counter-reset: sec; }
+    section { margin-bottom: 4rem; }
+    section > h2 { font-size: 1.5rem; font-weight: 700; margin: 0 0 1rem; }
+    section > h2::before { counter-increment: sec; content: counter(sec) ". "; color: var(--brand-600); }
+    h3 { font-size: 1.125rem; font-weight: 600; margin: 2rem 0 .75rem; }
+    h4 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 .5rem; }
 
     /* Cards */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin: 1.25rem 0;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      box-shadow: var(--shadow);
-    }
-
-    .card h4 {
-      margin: 0 0 0.5rem;
-      font-size: 0.95rem;
-      color: var(--accent);
-    }
-
-    .card p {
-      margin: 0;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem; margin: 1.25rem 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+    .card h4 { margin: 0 0 .35rem; font-size: .95rem; color: var(--heading); }
+    .card p { margin: 0; font-size: .875rem; color: var(--muted); }
 
     /* Callouts */
-    .callout {
-      border-radius: var(--radius);
-      padding: 1rem 1.15rem;
-      margin: 1.25rem 0;
-      border-left: 4px solid;
-      font-size: 0.95rem;
-    }
+    .callout { border-radius: var(--radius); padding: 1rem; margin: 1.25rem 0; font-size: .9rem; border: 1px solid; }
+    .callout p, .callout ul { color: inherit; }
+    .callout-title { font-weight: 600; margin-bottom: .35rem; }
+    .callout-info { background: var(--brand-50); border-color: var(--brand-600); border-left-width: 4px; color: var(--text); }
+    .callout-info .callout-title { color: var(--brand-900); }
+    .callout-warn { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+    .callout-danger { background: var(--red-bg); border-color: var(--red-border); color: var(--red-text); }
+    .callout-success { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
 
-    .callout-title {
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-      font-size: 0.9rem;
-    }
-
-    .callout-warn { background: var(--warn-bg); border-color: var(--warn-border); }
-    .callout-danger { background: var(--danger-bg); border-color: var(--danger-border); }
-    .callout-success { background: var(--success-bg); border-color: var(--success-border); }
-    .callout-info { background: var(--info-bg); border-color: var(--info-border); }
-
-    /* Code */
-    pre {
-      margin: 1rem 0;
-      padding: 1.15rem 1.25rem;
-      background: var(--code-bg);
-      color: var(--code-text);
-      border-radius: var(--radius);
-      overflow-x: auto;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      line-height: 1.55;
-      box-shadow: var(--shadow);
-    }
-
-    code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.88em;
-      background: #f1f5f9;
-      color: #0f766e;
-      padding: 0.15em 0.4em;
-      border-radius: 4px;
-    }
-
-    pre code {
-      background: none;
-      color: inherit;
-      padding: 0;
-      font-size: inherit;
-    }
-
+    /* Código */
+    pre { position: relative; margin: 1rem 0; padding: 1rem; background: var(--code-bg); color: var(--code-text); border-radius: var(--radius); overflow-x: auto; }
+    pre code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .8125rem; line-height: 1.6; background: none; color: inherit; padding: 0; border: 0; }
+    code, kbd { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .8em; background: var(--inline-bg); border: 1px solid var(--inline-border); border-radius: .375rem; padding: .05rem .35rem; color: var(--heading); overflow-wrap: anywhere; }
+    .copy-btn { position: absolute; top: .5rem; right: .5rem; font: 500 11px 'Inter', sans-serif; padding: .25rem .5rem; border: 0; border-radius: .25rem; background: #334155; color: #e2e8f0; cursor: pointer; }
+    .copy-btn:hover { background: #475569; }
     .kw { color: #c084fc; }
     .fn { color: #67e8f9; }
     .str { color: #86efac; }
@@ -283,144 +123,57 @@
     .cls { color: #fcd34d; }
     .var { color: #f9a8d4; }
 
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1rem 0;
-      font-size: 0.9rem;
-      background: var(--surface);
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    th, td {
-      padding: 0.65rem 0.9rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-
-    th {
-      background: #f1f5f9;
-      font-weight: 600;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
-
+    /* Tabelas */
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .875rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    th, td { padding: .75rem; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    th { background: #f8fafc; font-weight: 600; color: var(--muted); }
     tr:last-child td { border-bottom: none; }
+    td code, p code, li code { overflow-wrap: anywhere; }
 
-    /* Compare columns */
-    .vs-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin: 1rem 0;
-    }
-
-    .vs-box {
-      padding: 1rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--surface);
-    }
-
-    .vs-box.yes { border-color: var(--success-border); }
-    .vs-box.no { border-color: var(--danger-border); }
-
+    /* Comparação antes/depois */
+    .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .vs-box { padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+    .vs-box.yes { border-color: var(--green-border); }
+    .vs-box.no { border-color: var(--red-border); }
     .vs-box h4 { margin-top: 0; }
+    .vs-box pre { margin-bottom: 0; }
 
-    /* API method list */
-    .method {
-      margin: 1.5rem 0;
-      padding: 1rem 1.15rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
+    /* Lista de métodos */
+    .method { margin: 1rem 0; padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+    .method-sig { font-family: 'JetBrains Mono', monospace; font-size: .85rem; color: var(--brand-700); font-weight: 500; word-break: break-all; }
+    .method-desc { margin: .4rem 0 0; font-size: .9rem; color: var(--muted); }
 
-    .method-sig {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--accent);
-      font-weight: 500;
-      word-break: break-all;
-    }
+    footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border-2); font-size: .75rem; color: var(--faint); }
 
-    .method-desc {
-      margin: 0.5rem 0 0;
-      font-size: 0.95rem;
-      color: var(--text-muted);
-    }
-
-    /* File tree */
-    .tree {
-      margin: 1rem 0;
-      padding: 1.15rem 1.25rem;
-      background: var(--code-bg);
-      color: var(--code-text);
-      border-radius: var(--radius);
-      overflow-x: auto;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      line-height: 1.5;
-      box-shadow: var(--shadow);
-      white-space: pre;
-    }
-
-    /* Mobile */
-    .menu-toggle {
-      display: none;
-      position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
-      z-index: 100;
-      width: 3rem;
-      height: 3rem;
-      border: none;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
-      font-size: 1.25rem;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);
-    }
-
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar {
-        position: fixed;
-        left: -100%;
-        z-index: 50;
-        width: var(--sidebar-w);
-        transition: left 0.25s;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.1);
-      }
-      .sidebar.open { left: 0; }
-      .main { padding: 1.5rem 1.25rem 5rem; max-width: none; }
-      .menu-toggle { display: flex; align-items: center; justify-content: center; }
+    @media (max-width: 1023px) {
+      .layout { display: block; }
+      .menu-toggle { display: inline-block; }
+      .sidebar { display: none; position: fixed; inset: 3.5rem 0 auto 0; height: auto; max-height: 70vh; z-index: 30; background: #fff; border-bottom: 1px solid var(--border-2); padding: 1rem; }
+      .sidebar.open { display: block; }
+      .main { padding: 1.5rem 0 4rem; }
       .vs-grid { grid-template-columns: 1fr; }
-      .hero { padding: 1.5rem; }
-      .hero h2 { font-size: 1.5rem; }
-    }
-
-    footer {
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      .hero h2 { font-size: 1.75rem; }
     }
   </style>
 </head>
 <body>
+<body>
 
-<button class="menu-toggle" type="button" aria-label="Abrir menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div id="progress"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="#intro" class="brand">
+      <span class="brand-mark">P</span>
+      PzDto
+      <span class="brand-pill">Guia do desenvolvedor</span>
+    </a>
+    <button id="menuBtn" class="menu-toggle" type="button" aria-expanded="false" aria-controls="toc">Sumário</button>
+  </div>
+</header>
 
 <div class="layout">
-  <nav class="sidebar" aria-label="Navegação">
+  <nav id="toc" class="sidebar" aria-label="Sumário">
     <div class="sidebar-brand">
       <h1>PzDto</h1>
       <p>puzl/pzdto · PHP 8.1+</p>
@@ -431,504 +184,1075 @@
       <a href="#intro">O que é</a>
       <a href="#instalacao">Instalação</a>
       <a href="#inicio-rapido">Início rápido</a>
+      <a href="#fluxo">Fluxo típico (request → DTO → Model)</a>
     </div>
 
     <div class="nav-group">
-      <div class="nav-group-title">Declaração</div>
+      <div class="nav-group-title">Declarando DTOs</div>
       <a href="#heranca">Herança</a>
       <a href="#conversao">Conversão de tipos</a>
       <a href="#aninhamento">DTOs e enums aninhados</a>
       <a href="#entrada-saida">Entrada e saída</a>
-      <a href="#rastreamento">Rastreamento (dirty)</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Usando o DTO</div>
+      <a href="#rastreamento">O que veio e o que mudou</a>
       <a href="#eloquent">Laravel / Eloquent</a>
     </div>
 
     <div class="nav-group">
-      <div class="nav-group-title">Validação</div>
-      <a href="#validacoes">Regras disponíveis</a>
-      <a href="#erros">Erros</a>
-      <a href="#regra-customizada">Regra customizada</a>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Migração</div>
+      <div class="nav-group-title">Referência</div>
+      <a href="#erros">Erros e exceções</a>
+      <a href="#api">API resumida</a>
       <a href="#migracao">Migrando da FromArrayTrait</a>
       <a href="#diferencas">Diferenças de comportamento</a>
       <a href="#faq">FAQ</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Bônus: validação por atributo</div>
+      <a href="#bonus-validacao">Quando usar</a>
+      <a href="#validacoes">Regras disponíveis</a>
+      <a href="#mensagens">Mensagens e idioma</a>
+      <a href="#regra-customizada">Regra customizada</a>
     </div>
   </nav>
 
   <main class="main">
 
     <header class="hero">
-      <h2>DTOs por herança, com cast e validação</h2>
-      <p>PzDto é a classe base dos DTOs da Puzl: <code>class FinanceCreateDto extends PzDto</code> e pronto — sem <code>use</code> de trait. Converte tipos automaticamente, aninha DTOs e enums com <code>#[DtoAttribute]</code>/<code>#[EnumAttribute]</code> e valida com atributos. É o sucessor da <code>FromArrayTrait</code>.</p>
+      <p style="font-size:.875rem;font-weight:600;color:var(--brand-600);margin:0 0 .5rem">Leia isto primeiro</p>
+      <h2>DTOs por herança, com cast automático e rastreamento</h2>
+      <p>Estenda <code>PzDto</code>, declare propriedades tipadas e chame <code>::from($dados)</code>. O pacote converte cada valor para o tipo declarado, aninha DTOs e enums, e diz o que veio na entrada e o que mudou depois.</p>
       <div class="hero-tags">
         <span class="tag">extends PzDto</span>
         <span class="tag">Cast automático</span>
-        <span class="tag">DtoAttribute / EnumAttribute</span>
-        <span class="tag">Validação por atributo</span>
-        <span class="tag">Convive com a FromArrayTrait</span>
+        <span class="tag">#[PzDtoAttribute] / #[PzEnumAttribute]</span>
+        <span class="tag">Entrada e saída previsíveis</span>
+        <span class="tag">wasProvided / isDirty</span>
+        <span class="tag">Eloquent sem acoplamento</span>
       </div>
     </header>
 
+    <!-- ============================================================ -->
     <section id="intro">
       <h2>O que é o PzDto?</h2>
-      <p>Uma classe abstrata que transforma qualquer classe PHP em DTO. Chame <code>Dto::from($dados)</code> com array, Model, stdClass, outro DTO ou JSON e receba a instância preenchida, com cada propriedade convertida para o tipo declarado.</p>
+      <p>Uma classe abstrata que transforma qualquer classe PHP em <strong>DTO</strong> (objeto de transferência de dados). Você declara as propriedades com tipos; o PzDto cuida de preencher, converter e serializar. Validação de negócio continua onde sempre esteve — FormRequest, Services e Entities; o DTO só garante que os dados chegam com o tipo certo.</p>
 
       <div class="cards">
         <div class="card">
-          <h4>Herança</h4>
-          <p><code>X extends PzDto</code> ou <code>X extends BaseDto extends PzDto</code>: <code>from()</code> sempre devolve a classe chamada.</p>
+          <h4>Entrada flexível</h4>
+          <p><code>from()</code> aceita array, Eloquent Model, stdClass, outro DTO ou string JSON. Sempre devolve a classe chamada.</p>
         </div>
         <div class="card">
-          <h4>Mesma declaração</h4>
-          <p><code>#[DtoAttribute]</code> e <code>#[EnumAttribute]</code> funcionam como na trait — em qualquer ordem, junto com outros atributos.</p>
+          <h4>Cast pelo tipo</h4>
+          <p><code>"12"</code> vira <code>int</code>, <code>"1,5"</code> vira <code>float</code>, <code>"2026-10-22"</code> vira <code>DateTime</code>, <code>"paid"</code> vira enum.</p>
         </div>
         <div class="card">
-          <h4>Validação</h4>
-          <p><code>#[Required]</code>, <code>#[Length]</code>, <code>#[IsEmail]</code>… todos os erros juntos numa exceção.</p>
+          <h4>Erros de conversão juntos</h4>
+          <p>Se algo não converte (<code>"abc"</code> em <code>int</code>, enum inexistente), nada é instanciado e todos os campos problemáticos vêm numa só exceção.</p>
         </div>
         <div class="card">
-          <h4>Sem Laravel obrigatório</h4>
-          <p>Só PHP 8.1. Aceita Model/Collection por <code>toArray()</code>.</p>
+          <h4>Sabe o que veio</h4>
+          <p><code>wasProvided()</code> separa "não mandou" de "mandou null". <code>isDirty()</code> diz o que mudou. Perfeito para PATCH.</p>
         </div>
       </div>
+
     </section>
 
+    <!-- ============================================================ -->
     <section id="instalacao">
       <h2>Instalação</h2>
-      <p>O repositório <code>PuzlPlace/PzDto</code> é <strong>público</strong>, mas o pacote <strong>não está no Packagist</strong> — é distribuído pelo próprio repositório Git. Adicione o repositório ao <code>composer.json</code> do projeto consumidor:</p>
-<pre><code><span class="kw">{</span>
-    <span class="str">"repositories"</span>: [
-        {
-            <span class="str">"type"</span>: <span class="str">"vcs"</span>,
-            <span class="str">"url"</span>: <span class="str">"https://github.com/PuzlPlace/PzDto.git"</span>
-        }
-    ]
-<span class="kw">}</span></code></pre>
+      <p>O repositório é público, mas o pacote <strong>não está no Packagist</strong>. São dois passos.</p>
 
-      <p>Em seguida, instale via Composer:</p>
+      <h3>1. Declare o repositório</h3>
+      <p>No <code>composer.json</code> da aplicação, no mesmo nível de <code>require</code>:</p>
+<pre><code>"repositories": [
+    { "type": "vcs", "url": "https://github.com/PuzlPlace/PzDto.git" }
+]</code></pre>
+
+      <h3>2. Instale por versão</h3>
 <pre><code>composer require puzl/pzdto:^1.0</code></pre>
 
-      <p>Cada release é uma tag semver (veja as <a href="https://github.com/PuzlPlace/PzDto/releases">Releases</a>). Use <code>^1.0</code> para receber correções e recursos novos sem nunca subir de major; evite <code>dev-production</code>, que segue o topo da branch sem versão.</p>
-
       <h3>Requisitos</h3>
-      <table>
-        <thead>
-          <tr><th>Requisito</th><th>Obrigatório?</th><th>Notas</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>PHP ^8.1</td><td>Sim</td><td>Testado em 8.2 / 8.3</td></tr>
-          <tr><td>Laravel</td><td>Não</td><td>Sem Service Provider. Com Laravel, reconhece Model, Collection e paginator (testado no 13; APIs usadas existem desde o 10)</td></tr>
-        </tbody>
-      </table>
+      <ul>
+        <li>PHP 8.1 ou superior. Nenhuma dependência obrigatória.</li>
+        <li>Com Laravel instalado, reconhece Eloquent Model, Collection e paginator automaticamente.</li>
+        <li>Não há Service Provider, config nem comando. Basta estender <code>PzDto</code>.</li>
+      </ul>
 
-      <div class="callout callout-warn">
-        <div class="callout-title">Habilitar o GitHub Pages</div>
-        Para que este tutorial fique acessível online, habilite o GitHub Pages do repositório em <code>Settings → Pages → Build and deployment → Source: GitHub Actions</code>. O workflow <code>.github/workflows/pages.yml</code> publica o conteúdo de <code>docs/</code> a cada push em <code>master</code>.
+      <div class="callout callout-info">
+        <div class="callout-title">Opcional, mas recomendado: mensagens em português</div>
+        <p style="margin:0">No <code>boot()</code> do <code>AppServiceProvider</code>: <code>PzDto::useLocale('pt_BR');</code> — as mensagens de erro de conversão (e das regras do bônus) saem em pt-BR. Se a API escolhe o idioma por requisição (header <code>Accept-Language</code>), use <code>PzDto::useLocale(fn () => app()->getLocale());</code>. <a href="#mensagens">Detalhes</a>.</p>
       </div>
     </section>
 
+    <!-- ============================================================ -->
     <section id="inicio-rapido">
       <h2>Início rápido</h2>
+      <p>Um DTO de criação de pedido, com cliente aninhado, lista de itens e enum:</p>
 <pre><code><span class="kw">use</span> Puzl\PzDto\PzDto;
-<span class="kw">use</span> Puzl\PzDto\Attributes\DtoAttribute;
-<span class="kw">use</span> Puzl\PzDto\Attributes\EnumAttribute;
-<span class="kw">use</span> Puzl\PzDto\Attributes\Validation\{Required, Length, Min};
+<span class="kw">use</span> Puzl\PzDto\Attributes\PzDtoAttribute;
 
-<span class="kw">class</span> FinanceCreateDto <span class="kw">extends</span> PzDto
+<span class="kw">enum</span> OrderStatus: string { <span class="kw">case</span> OPEN = <span class="str">'open'</span>; <span class="kw">case</span> PAID = <span class="str">'paid'</span>; }
+
+<span class="kw">final class</span> CustomerDto <span class="kw">extends</span> PzDto
 {
-    #[Required, Length(max: 120)]
-    <span class="kw">public</span> string $description;
-
-    #[Min(0)]
-    <span class="kw">public</span> float $amount;
-
-    #[EnumAttribute]
-    <span class="kw">public</span> FinanceTypeEnum $type;
-
-    #[DtoAttribute(FinanceInstallmentDto::class)]
-    <span class="kw">public</span> array $installments = [];
+    <span class="kw">public</span> string $name;
+    <span class="kw">public</span> ?string $email;
 }
 
-$dto = FinanceCreateDto::from($request->validated());</code></pre>
-    </section>
-
-    <section id="heranca">
-      <h2>Herança</h2>
-      <p>Toda a lógica está na classe <code>PzDto</code>; não existe trait. Qualquer nível de herança funciona e <code>from()</code>/<code>create()</code> retornam <code>static</code>:</p>
-<pre><code><span class="kw">abstract class</span> BaseDto <span class="kw">extends</span> PzDto {}
-
-<span class="kw">class</span> FinanceCreateDto <span class="kw">extends</span> BaseDto { ... }
-
-FinanceCreateDto::from([...]); <span class="cmt">// instância de FinanceCreateDto</span></code></pre>
-      <ul>
-        <li>Propriedades do pai (inclusive <code>private</code>) e da filha são preenchidas; a filha pode redeclarar uma propriedade.</li>
-        <li><code>readonly</code>, <code>protected</code> e <code>private</code> são suportadas. Propriedades <code>static</code> são ignoradas.</li>
-        <li>O construtor da classe <strong>não</strong> é chamado.</li>
-        <li>Validações declaradas no pai valem para as filhas.</li>
-      </ul>
-    </section>
-
-    <section id="conversao">
-      <h2>Conversão de tipos</h2>
-      <table>
-        <thead>
-          <tr><th>Tipo</th><th>Aceita</th><th>Sem valor (não-nullable)</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>int</code></td><td>int, float, bool, string numérica (<code>"12"</code>)</td><td><code>0</code></td></tr>
-          <tr><td><code>float</code></td><td>número, string numérica, <code>"1,5"</code></td><td><code>0.0</code></td></tr>
-          <tr><td><code>string</code></td><td>escalares, enum (value/name), Stringable, DateTime</td><td><code>''</code></td></tr>
-          <tr><td><code>bool</code></td><td><code>true/1/"1"/"true"/"on"/"yes"</code> → true; resto → false</td><td><code>false</code></td></tr>
-          <tr><td><code>array</code></td><td>array, objeto com <code>toArray()</code></td><td><code>[]</code></td></tr>
-          <tr><td><code>DateTime</code>, <code>DateTimeImmutable</code>, <code>Carbon</code></td><td>string, timestamp, outro DateTime</td><td>erro de validação</td></tr>
-          <tr><td>enum</td><td>case, value, name</td><td>erro de validação</td></tr>
-          <tr><td>DTO</td><td>array, objeto, JSON</td><td>DTO vazio (sem validar)</td></tr>
-          <tr><td>union (<code>bool|int</code>…)</td><td>mantém o valor se já é de um dos tipos; senão converte para o primeiro que aceitar</td><td>zero do primeiro tipo</td></tr>
-        </tbody>
-      </table>
-      <ul>
-        <li>Chave <strong>ausente</strong> → default da propriedade; sem default, <code>null</code> (nullable) ou o "zero" da tabela.</li>
-        <li><code>null</code> <strong>explícito</strong> em nullable → <code>null</code>, mesmo com default.</li>
-        <li><code>''</code> em número, data, enum ou DTO conta como "sem valor".</li>
-        <li><code>0</code>, <code>0.0</code>, <code>false</code> e <code>[]</code> são preservados.</li>
-        <li>String não numérica em <code>int</code>/<code>float</code> (<code>"12abc"</code>) é erro de validação.</li>
-      </ul>
-    </section>
-
-    <section id="aninhamento">
-      <h2>DTOs e enums aninhados</h2>
-<pre><code><span class="kw">class</span> OrderDto <span class="kw">extends</span> PzDto
+<span class="kw">final class</span> OrderItemDto <span class="kw">extends</span> PzDto
 {
-    #[DtoAttribute]                       <span class="cmt">// pelo tipo da propriedade</span>
-    <span class="kw">public</span> CustomerDto $customer;
+    <span class="kw">public</span> string $sku;
+    <span class="kw">public</span> int $qty = 1;
+    <span class="kw">public</span> float $price;
+}
 
-    #[DtoAttribute(ItemDto::class)]       <span class="cmt">// lista: classe obrigatória</span>
+<span class="kw">final class</span> OrderCreateDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> string $description;
+    <span class="kw">public</span> float $amount;
+
+    <span class="kw">public</span> OrderStatus $status = OrderStatus::OPEN;   <span class="cmt">// enum pelo tipo, sem atributo</span>
+    <span class="kw">public</span> CustomerDto $customer;                     <span class="cmt">// DTO aninhado pelo tipo, sem atributo</span>
+
+    #[PzDtoAttribute(OrderItemDto::class)]              <span class="cmt">// array: aqui o atributo é obrigatório</span>
     <span class="kw">public</span> array $items = [];
 
-    #[EnumAttribute]
-    <span class="kw">public</span> ?StatusEnum $status;
-
-    #[EnumAttribute(StatusEnum::class)]
-    <span class="kw">public</span> array $history = [];
-
-    <span class="kw">public</span> StatusEnum $kind = StatusEnum::OPEN; <span class="cmt">// enum/DTO pelo tipo também funciona sem atributo</span>
+    <span class="kw">public</span> ?\DateTimeImmutable $due_at;
 }</code></pre>
-      <p>Os atributos podem vir em <strong>qualquer ordem</strong> e combinados com validações (<code>#[IsNotEmpty, EnumAttribute]</code>, <code>#[Max(10)] #[DtoAttribute(ItemDto::class)]</code>). Enum com valor que não existe gera erro — não cai mais no primeiro case.</p>
-      <p>A classe do <code>#[DtoAttribute]</code> pode ser um DTO legado com <code>FromArrayTrait</code>: basta ter <code>static from()</code>.</p>
+
+      <p>Regra simples: <strong>o tipo da propriedade manda</strong>. Enum, DTO e data são reconhecidos pelo tipo; <code>#[PzDtoAttribute]</code>/<code>#[PzEnumAttribute]</code> só são necessários em propriedade <code>array</code> (para dizer a classe dos itens). Em propriedade tipada eles são opcionais.</p>
+
+      <p>Usando:</p>
+<pre><code>$dto = OrderCreateDto::from([
+    <span class="str">'description'</span> => <span class="str">'Pedido 123'</span>,
+    <span class="str">'amount'</span>      => <span class="str">'150,90'</span>,                 <span class="cmt">// string pt-BR → float 150.9</span>
+    <span class="str">'status'</span>      => <span class="str">'paid'</span>,                   <span class="cmt">// string → OrderStatus::PAID</span>
+    <span class="str">'customer'</span>    => [<span class="str">'name'</span> => <span class="str">'Ana'</span>, <span class="str">'email'</span> => <span class="str">'ana@x.com'</span>],
+    <span class="str">'items'</span>       => [[<span class="str">'sku'</span> => <span class="str">'A1'</span>, <span class="str">'qty'</span> => <span class="str">'2'</span>, <span class="str">'price'</span> => 10]],
+    <span class="str">'due_at'</span>      => <span class="str">'2026-11-01'</span>,             <span class="cmt">// string → DateTimeImmutable</span>
+]);
+
+$dto->amount;              <span class="cmt">// 150.9 (float)</span>
+$dto->status;              <span class="cmt">// OrderStatus::PAID</span>
+$dto->customer->name;      <span class="cmt">// 'Ana'</span>
+$dto->items[0]->qty;       <span class="cmt">// 2 (int)</span>
+$dto->toArray();           <span class="cmt">// array pronto para JSON ou $model->fill()</span></code></pre>
+
+      <p>Se algum valor não converte para o tipo declarado, nada é instanciado e <strong>todos</strong> os problemas vêm juntos:</p>
+<pre><code><span class="kw">try</span> {
+    OrderCreateDto::from([<span class="str">'amount'</span> => <span class="str">'abc'</span>, <span class="str">'status'</span> => <span class="str">'x'</span>, <span class="str">'items'</span> => [[<span class="str">'qty'</span> => <span class="str">'muitos'</span>]]]);
+} <span class="kw">catch</span> (PzDtoValidationException $e) {
+    $e->errors();
+    <span class="cmt">// [
+    //   'amount'      => ['The amount field must be a number.'],
+    //   'status'      => ['The selected status is invalid.'],
+    //   'items.0.qty' => ['The qty field must be an integer.'],
+    // ]</span>
+}</code></pre>
+      <p>Regras além do tipo (obrigatório, tamanho, e-mail…) ficam no <code>FormRequest</code>, no Service ou na Entity. Se precisar delas no próprio DTO, existe suporte opcional — veja o <a href="#bonus-validacao">bônus</a> no fim.</p>
     </section>
 
+    <!-- ============================================================ -->
+    <section id="fluxo">
+      <h2>Fluxo típico: request → DTO → Model</h2>
+      <p>Como o PzDto encaixa numa API Laravel. O <code>FormRequest</code> valida; o DTO garante os tipos e viaja até o service/repository.</p>
+
+      <h3>Criação</h3>
+<pre><code><span class="cmt">// Controller</span>
+<span class="kw">public function</span> store(OrderStoreRequest $request, OrderService $service)
+{
+    $dto = OrderCreateDto::from($request->validated());
+
+    <span class="kw">return</span> OrderResource::make($service->create($dto));
+}
+
+<span class="cmt">// Service</span>
+<span class="kw">public function</span> create(OrderCreateDto $dto): Order
+{
+    <span class="kw">return</span> DB::transaction(<span class="kw">function</span> () <span class="kw">use</span> ($dto) {
+        $order = Order::create($dto->except(<span class="str">'customer'</span>, <span class="str">'items'</span>));
+        $order->items()->createMany($dto->only(<span class="str">'items'</span>)[<span class="str">'items'</span>]);
+
+        <span class="kw">return</span> $order;
+    });
+}</code></pre>
+
+      <h3>Atualização parcial (PATCH)</h3>
+      <p>Aqui o pulo do gato: <code>toArrayProvided()</code> devolve <strong>só o que veio</strong> na requisição. Campos não enviados não são tocados na Model.</p>
+<pre><code><span class="kw">final class</span> OrderUpdateDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> string $description;
+    <span class="kw">public</span> float $amount;
+
+    <span class="kw">public</span> ?OrderStatus $status;
+
+    <span class="kw">public</span> ?\DateTimeImmutable $due_at;
+}
+
+<span class="cmt">// PATCH /orders/1  { "status": "paid", "due_at": null }</span>
+$dto = OrderUpdateDto::from($request->validated());
+
+$dto->wasProvided(<span class="str">'status'</span>);   <span class="cmt">// true</span>
+$dto->wasProvided(<span class="str">'due_at'</span>);   <span class="cmt">// true  (veio, mesmo sendo null)</span>
+$dto->wasProvided(<span class="str">'amount'</span>);   <span class="cmt">// false (não veio)</span>
+
+$order->update($dto->toArrayProvided());
+<span class="cmt">// UPDATE orders SET status = 'paid', due_at = NULL  — amount e description intactos</span></code></pre>
+
+      <div class="callout callout-danger">
+        <div class="callout-title">Nunca use toArray() para update parcial</div>
+        <p style="margin:0"><code>toArray()</code> traz <strong>todas</strong> as propriedades, com o "zero" do tipo nas que não vieram (<code>0</code>, <code>''</code>, <code>null</code>…). Num <code>update()</code> isso apaga colunas. Use <code>toArrayProvided()</code>.</p>
+      </div>
+
+      <h3>Leitura (Model → DTO → resposta)</h3>
+<pre><code>$orders = Order::with(<span class="str">'customer'</span>, <span class="str">'items'</span>)->paginate();
+
+$dtos = OrderViewDto::collect($orders);   <span class="cmt">// array de OrderViewDto, chaves preservadas</span>
+
+<span class="kw">return</span> response()->json(array_map(<span class="kw">fn</span> ($d) => $d->toArray(), $dtos));</code></pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="heranca">
+      <h2>Herança</h2>
+      <p>Toda a lógica está em <code>PzDto</code>; não existe trait. Qualquer profundidade de herança funciona e <code>from()</code>/<code>create()</code> devolvem sempre a classe chamada (<code>static</code>).</p>
+
+<pre><code><span class="cmt">// Base do projeto (opcional): um lugar para métodos comuns</span>
+<span class="kw">abstract class</span> BaseDto <span class="kw">extends</span> PzDto {}
+
+<span class="kw">class</span> OrderCreateDto <span class="kw">extends</span> BaseDto
+{
+    <span class="kw">public</span> string $description;
+    <span class="kw">public</span> int $company_id;
+}
+
+<span class="kw">class</span> OrderSpecialCreateDto <span class="kw">extends</span> OrderCreateDto
+{
+    <span class="kw">public</span> int $extra = 0;
+    <span class="kw">private</span> string $secret = <span class="str">''</span>;   <span class="cmt">// private também é preenchida</span>
+}
+
+OrderSpecialCreateDto::from([...]);   <span class="cmt">// instância de OrderSpecialCreateDto</span></code></pre>
+
+      <ul>
+        <li><strong>Propriedades do pai valem no filho</strong>, inclusive <code>private</code> (e os atributos declarados nele).</li>
+        <li><strong>Filha pode redeclarar</strong> uma propriedade do pai (ex.: trocar o default). A declaração da filha vence.</li>
+        <li><code>public</code>, <code>protected</code>, <code>private</code> e <code>readonly</code> são preenchidas. Só <code>static</code> é ignorada.</li>
+        <li><code>toArray()</code> traz apenas as <strong>públicas</strong>, na ordem "pai antes da filha".</li>
+        <li>O <strong>construtor não é chamado</strong> pelo <code>from()</code>. Não dependa dele para inicializar estado.</li>
+        <li>Classe <code>abstract</code> não pode ser instanciada: <code>BaseDto::from()</code> lança <code>PzDtoException</code>.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="conversao">
+      <h2>Conversão de tipos</h2>
+      <p>O tipo declarado da propriedade decide a conversão. Não precisa de atributo para escalares, datas e enums tipados.</p>
+
+      <table>
+        <thead><tr><th>Tipo declarado</th><th>Aceita</th><th>Exemplo</th></tr></thead>
+        <tbody>
+          <tr><td><code>int</code></td><td>int, float, bool, string numérica</td><td><code>"12"</code> → <code>12</code>, <code>"12.9"</code> → <code>12</code>, <code>"12abc"</code> → <strong>erro</strong></td></tr>
+          <tr><td><code>float</code></td><td>número ou string numérica, com vírgula pt-BR</td><td><code>"1,5"</code> → <code>1.5</code>, <code>"1.5"</code> → <code>1.5</code></td></tr>
+          <tr><td><code>string</code></td><td>escalares, enum, DateTime, Stringable</td><td><code>10</code> → <code>"10"</code>, <code>Status::PAID</code> → <code>"paid"</code></td></tr>
+          <tr><td><code>bool</code></td><td>bool, número ou string (ver tabela abaixo)</td><td><code>"on"</code> → <code>true</code>, <code>"no"</code> → <code>false</code></td></tr>
+          <tr><td><code>array</code></td><td>array, objeto com <code>toArray()</code>, stdClass</td><td>Collection → <code>array</code></td></tr>
+          <tr><td><code>DateTime</code>, <code>DateTimeImmutable</code>, <code>DateTimeInterface</code>, Carbon</td><td>string de data, timestamp int, outra data, array <code>{date, timezone}</code></td><td><code>"2026-10-22 10:00"</code>, <code>1700000000</code> (no fuso da app)</td></tr>
+          <tr><td>Enum (backed ou puro)</td><td>value, name ou o próprio case</td><td><code>"paid"</code>, <code>"PAID"</code>, <code>2</code></td></tr>
+          <tr><td>Outra classe <code>PzDto</code></td><td>array, Model, stdClass, JSON, instância</td><td>vira DTO aninhado (<a href="#aninhamento">ver</a>)</td></tr>
+          <tr><td><code>int|string</code>, <code>bool|int</code> (union)</td><td>mantém o valor se já é de um dos tipos; senão tenta na ordem</td><td><code>true</code> em <code>bool|int</code> → <code>true</code></td></tr>
+          <tr><td><code>mixed</code> / sem tipo</td><td>qualquer coisa, sem conversão</td><td></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Como <code>bool</code> é decidido</h3>
+      <p>Pensado para formulários e query strings, onde "verdadeiro" chega de várias formas:</p>
+      <table>
+        <thead><tr><th>Valor recebido</th><th>Vira</th><th>Por quê</th></tr></thead>
+        <tbody>
+          <tr><td><code>true</code> / <code>false</code></td><td>o mesmo</td><td>já é bool</td></tr>
+          <tr><td>Número: <code>1</code>, <code>2</code>, <code>-1</code>, <code>0.5</code></td><td><code>true</code></td><td>número diferente de zero</td></tr>
+          <tr><td>Número: <code>0</code>, <code>0.0</code></td><td><code>false</code></td><td>zero</td></tr>
+          <tr><td>String numérica: <code>"1"</code>, <code>"2"</code></td><td><code>true</code></td><td>mesma regra dos números</td></tr>
+          <tr><td>String numérica: <code>"0"</code>, <code>"0.0"</code></td><td><code>false</code></td><td>zero</td></tr>
+          <tr><td><code>"true"</code>, <code>"on"</code>, <code>"yes"</code> (qualquer caixa, com espaços)</td><td><code>true</code></td><td>palavras de checkbox/form</td></tr>
+          <tr><td><code>"false"</code>, <code>"off"</code>, <code>"no"</code>, <code>""</code>, <code>"abc"</code></td><td><code>false</code></td><td>qualquer outra string</td></tr>
+          <tr><td><code>null</code> ou chave ausente</td><td><code>null</code> se <code>?bool</code>; senão default ou <code>false</code></td><td>regra geral de ausência (abaixo)</td></tr>
+        </tbody>
+      </table>
+<pre><code><span class="kw">final class</span> FlagsDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> bool $active;
+    <span class="kw">public</span> ?bool $notify;
+}
+
+FlagsDto::from([<span class="str">'active'</span> => <span class="str">'on'</span>])->active;      <span class="cmt">// true  (checkbox marcado)</span>
+FlagsDto::from([<span class="str">'active'</span> => <span class="str">'0'</span>])->active;       <span class="cmt">// false</span>
+FlagsDto::from([<span class="str">'active'</span> => 2])->active;         <span class="cmt">// true  (≠ 0)</span>
+FlagsDto::from([<span class="str">'active'</span> => <span class="str">'abc'</span>])->active;     <span class="cmt">// false (texto desconhecido nunca é true)</span>
+FlagsDto::from([])->active;                       <span class="cmt">// false (não veio, não-nullable)</span>
+FlagsDto::from([])->notify;                       <span class="cmt">// null  (não veio, nullable)</span></code></pre>
+
+      <div class="callout callout-info">
+        <div class="callout-title">Quer rejeitar "abc" em vez de virar false?</div>
+        <p style="margin:0">Valide no FormRequest (<code>'active' => 'boolean'</code>) — ou, se o DTO for a única fronteira, use a regra do bônus <code>#[PzIsBoolean]</code>, que só aceita <code>true/false/0/1/"0"/"1"/"true"/"false"</code>.</p>
+      </div>
+
+      <h3>Ausente × null × string vazia</h3>
+      <p>Três situações diferentes, tratadas de forma previsível:</p>
+      <table>
+        <thead><tr><th>Situação</th><th>Propriedade nullable (<code>?int</code>)</th><th>Não-nullable (<code>int</code>)</th></tr></thead>
+        <tbody>
+          <tr><td>Chave <strong>não veio</strong></td><td>default da propriedade; senão <code>null</code></td><td>default; senão o "zero" do tipo (<code>0</code>, <code>0.0</code>, <code>''</code>, <code>false</code>, <code>[]</code>, DTO vazio)</td></tr>
+          <tr><td>Veio <strong><code>null</code></strong></td><td><code>null</code> (mesmo com default)</td><td>default; senão o "zero"</td></tr>
+          <tr><td>Veio <strong><code>''</code></strong> em número, data, enum ou DTO</td><td><code>null</code> (formulário vazio = sem valor)</td><td>default; senão o "zero"</td></tr>
+          <tr><td>Veio <code>''</code> em <code>string</code></td><td colspan="2"><code>''</code> (string vazia é um valor legítimo)</td></tr>
+          <tr><td>Enum ou data <strong>sem valor</strong> em não-nullable</td><td>—</td><td><strong>erro de validação</strong> ("is required"): não existe "zero" para eles</td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="kw">final class</span> FilterDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> ?int $page;          <span class="cmt">// não veio → null</span>
+    <span class="kw">public</span> int $per_page = 15;  <span class="cmt">// não veio → 15; veio null → 15; veio "" → 15</span>
+    <span class="kw">public</span> ?int $min_qty;       <span class="cmt">// veio 0 → 0 (zero é valor!)</span>
+    <span class="kw">public</span> array $ids;          <span class="cmt">// não veio → []</span>
+}
+
+$f = FilterDto::from([<span class="str">'min_qty'</span> => 0, <span class="str">'per_page'</span> => <span class="str">''</span>]);
+$f->page;      <span class="cmt">// null</span>
+$f->per_page;  <span class="cmt">// 15</span>
+$f->min_qty;   <span class="cmt">// 0</span>
+$f->ids;       <span class="cmt">// []</span></code></pre>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">Datas aceitam qualquer formato que o PHP entenda</div>
+        <p style="margin:0"><code>"2026-10-22"</code>, <code>"22/10/2026"</code>, <code>"tomorrow"</code>… tudo vira data. Para exigir um formato exato em input de API, mantenha a propriedade como <code>string</code> e use <code>#[PzIsDateString]</code>, ou valide o formato no FormRequest.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="aninhamento">
+      <h2>DTOs e enums aninhados</h2>
+
+      <h3>Um DTO dentro de outro</h3>
+      <p>Se a propriedade é tipada com uma classe <code>PzDto</code>, o aninhamento é automático. <code>#[PzDtoAttribute]</code> é opcional nesse caso (fica como documentação e para compatibilidade com a trait). O mesmo vale para enum: <code>public OrderStatus $status</code> converte sozinho.</p>
+<pre><code><span class="kw">final class</span> OrderDto <span class="kw">extends</span> PzDto
+{
+    #[PzDtoAttribute]
+    <span class="kw">public</span> CustomerDto $customer;     <span class="cmt">// pelo atributo</span>
+
+    <span class="kw">public</span> AddressDto $billing;       <span class="cmt">// pelo tipo, sem atributo — igual</span>
+
+    <span class="kw">public</span> ?AddressDto $shipping;     <span class="cmt">// nullable: não veio → null</span>
+}
+
+$dto = OrderDto::from([<span class="str">'customer'</span> => [<span class="str">'name'</span> => <span class="str">'Ana'</span>]]);
+$dto->customer->name;   <span class="cmt">// 'Ana'</span>
+$dto->billing;          <span class="cmt">// AddressDto "vazio" (não-nullable, sem dados) — sem validar</span>
+$dto->shipping;         <span class="cmt">// null</span></code></pre>
+
+      <h3>Lista de DTOs</h3>
+      <p>Em propriedade <code>array</code>, a classe é <strong>obrigatória</strong> no atributo. Cada item vira uma instância; as chaves do array recebido são preservadas.</p>
+<pre><code>#[PzDtoAttribute(OrderItemDto::class)]
+<span class="kw">public</span> array $items = [];
+
+<span class="cmt">// ou, com nome do parâmetro:</span>
+#[PzDtoAttribute(class: OrderItemDto::class)]
+<span class="kw">public</span> array $items = [];
+
+$dto = OrderDto::from([<span class="str">'items'</span> => [[<span class="str">'sku'</span> => <span class="str">'A'</span>], [<span class="str">'sku'</span> => <span class="str">'B'</span>]]]);
+$dto->items[1]->sku;   <span class="cmt">// 'B'</span></code></pre>
+
+      <h3>Enums</h3>
+<pre><code><span class="kw">enum</span> Status: int { <span class="kw">case</span> OPEN = 1; <span class="kw">case</span> PAID = 2; }
+<span class="kw">enum</span> Size { <span class="kw">case</span> SMALL; <span class="kw">case</span> BIG; }          <span class="cmt">// enum puro também funciona</span>
+
+<span class="kw">final class</span> ProductDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> Status $status;               <span class="cmt">// pelo tipo</span>
+
+    #[PzEnumAttribute]
+    <span class="kw">public</span> ?Status $previous;            <span class="cmt">// pelo atributo (opcional)</span>
+
+    #[PzEnumAttribute(Status::class)]
+    <span class="kw">public</span> array $history = [];          <span class="cmt">// lista de enums: classe obrigatória</span>
+
+    <span class="kw">public</span> Size $size = Size::SMALL;
+}
+
+ProductDto::from([<span class="str">'status'</span> => 2]);          <span class="cmt">// Status::PAID (pelo value)</span>
+ProductDto::from([<span class="str">'status'</span> => <span class="str">'2'</span>]);        <span class="cmt">// Status::PAID (string numérica ok)</span>
+ProductDto::from([<span class="str">'status'</span> => <span class="str">'PAID'</span>]);     <span class="cmt">// Status::PAID (pelo name)</span>
+ProductDto::from([<span class="str">'status'</span> => 99]);         <span class="cmt">// erro de validação: "The selected status is invalid."</span>
+ProductDto::from([<span class="str">'size'</span> => <span class="str">'BIG'</span>]);        <span class="cmt">// Size::BIG</span></code></pre>
+
+      <h3>Erros de aninhados usam notação de ponto</h3>
+<pre><code>OrderDto::from([<span class="str">'customer'</span> => [<span class="str">'name'</span> => [<span class="str">'x'</span>]], <span class="str">'items'</span> => [[<span class="str">'sku'</span> => <span class="str">'A'</span>], [<span class="str">'qty'</span> => <span class="str">'x'</span>]]]);
+<span class="cmt">// errors():
+//   'customer.name' => ['The name field must be a string.']
+//   'items.1.qty'   => ['The qty field must be an integer.']</span>
+
+<span class="cmt">// Input com formato errado também é erro de validação (nunca exceção de uso):</span>
+OrderDto::from([<span class="str">'customer'</span> => <span class="str">'abc'</span>, <span class="str">'items'</span> => [1, 2]]);
+<span class="cmt">//   'customer' => ['The customer field must be an array.']
+//   'items.0'  => ['The items field must be an array.'], 'items.1' => [...]</span></code></pre>
+
+      <div class="callout callout-info">
+        <div class="callout-title">Instância pronta é mantida</div>
+        <p style="margin:0">Se o valor já é uma instância da classe esperada (<code>'customer' => $customerDto</code>, <code>'status' => Status::PAID</code>), ela é usada como está, sem reconverter.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
     <section id="entrada-saida">
       <h2>Entrada e saída</h2>
-<pre><code>Dto::from([<span class="str">'a'</span> => 1]);
-Dto::from($model);                  <span class="cmt">// Eloquent: campo a campo (ver Laravel / Eloquent)</span>
-Dto::collect($models);              <span class="cmt">// lista de DTOs</span>
-Dto::from((object) [<span class="str">'a'</span> => 1]);
-Dto::from($outroDto);               <span class="cmt">// propriedades públicas, preservando objetos</span>
-Dto::from(<span class="str">'{"a":1}'</span>);             <span class="cmt">// JSON inválido lança PzDtoException</span>
-Dto::from($dados, [<span class="str">'address'</span>]);    <span class="cmt">// mescla $dados['address'] na raiz</span>
-Dto::create([<span class="str">'a'</span> => 1]);
 
-$dto->toArray();                    <span class="cmt">// enum → value, data → "Y-m-d H:i:s"</span>
-$dto->toJson();                     <span class="cmt">// = json_encode($dto)</span>
-$dto->assertValid();                <span class="cmt">// revalida após alterar propriedades</span></code></pre>
-      <h3>Campos não preenchidos no toArray()</h3>
-      <p><code>toArray()</code>, <code>toJson()</code> e <code>json_encode($dto)</code> trazem <strong>sempre todas</strong> as propriedades públicas, na ordem de declaração (pai antes da filha). Um campo que nunca recebeu valor — por exemplo depois de <code>new</code> com atribuição parcial — sai com o que o <code>create()</code> daria se a chave não viesse:</p>
-      <table>
-        <thead>
-          <tr><th>Campo não preenchido</th><th>No toArray()</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>com default</td><td>o default</td></tr>
-          <tr><td>nullable (<code>?float</code>)</td><td><code>null</code></td></tr>
-          <tr><td>não-nullable (<code>float</code>, <code>int</code>, <code>string</code>, <code>bool</code>, <code>array</code>)</td><td><code>0.0</code>, <code>0</code>, <code>''</code>, <code>false</code>, <code>[]</code></td></tr>
-          <tr><td>enum ou data não-nullable</td><td><code>null</code> (não têm zero)</td></tr>
-          <tr><td>DTO aninhado</td><td>o DTO vazio</td></tr>
-        </tbody>
-      </table>
-<pre><code>$dto = <span class="kw">new</span> FinanceDto();
-$dto->description = <span class="str">'Aluguel'</span>;
-$dto->toArray(); <span class="cmt">// ['description' => 'Aluguel', 'amount' => 0.0, 'discount' => null, ...]</span></code></pre>
-      <p>Atribuição manual não converte nem valida; use <code>assertValid()</code> ou prefira <code>Dto::create([...])</code>.</p>
+      <h3>Formas de criar</h3>
+      <div class="method">
+        <div class="method-sig">Dto::from(mixed $values, ?array $destructuring = null): static</div>
+        <p class="method-desc">Aceita array, Eloquent Model, stdClass, objeto com <code>toArray()</code>, outro DTO ou string JSON. Converte e valida. <code>null</code> equivale a <code>[]</code>.</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">Dto::create(?array $values): static</div>
+        <p class="method-desc">Mesma coisa que <code>from()</code>, só com array. Útil quando você já tem o array e quer o nome mais explícito.</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">Dto::collect(iterable $items): array</div>
+        <p class="method-desc">Lista de DTOs a partir de array, Collection, LazyCollection ou paginator. Erros de todos os itens juntos, com o índice no caminho (<code>'3.qty'</code>).</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">Dto::fromTracked(mixed $values, ?array $destructuring = null): static</div>
+        <p class="method-desc"><code>from()</code> já com rastreamento de alterações ligado (<a href="#rastreamento">ver</a>).</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">Dto::blank(): static</div>
+        <p class="method-desc">Instância "vazia" sem validar (o que um aninhado não-nullable recebe quando a chave não vem).</p>
+      </div>
+
+<pre><code>OrderDto::from($request->validated());
+OrderDto::from($order);                              <span class="cmt">// Eloquent Model</span>
+OrderDto::from(<span class="str">'{"description":"x","amount":"10"}'</span>); <span class="cmt">// JSON</span>
+OrderDto::from($outroDto);                           <span class="cmt">// copia as públicas (objetos preservados)</span>
+OrderDto::from((object) [<span class="str">'description'</span> => <span class="str">'x'</span>]);  <span class="cmt">// stdClass</span></code></pre>
+
+      <h3>Destructuring: achatar uma chave na raiz</h3>
+      <p>O segundo argumento lista chaves cujo conteúdo é mesclado na raiz. Útil quando o payload vem com um envelope ou quando quer puxar uma relação da Model para o mesmo nível.</p>
+<pre><code><span class="cmt">// payload: { "name": "Ana", "address": { "city": "SP", "zip": "01001-000" } }</span>
+<span class="kw">final class</span> CustomerFlatDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> string $name;
+    <span class="kw">public</span> string $city;
+    <span class="kw">public</span> string $zip;
+}
+
+$dto = CustomerFlatDto::from($payload, [<span class="str">'address'</span>]);
+$dto->city;   <span class="cmt">// 'SP'</span></code></pre>
+
+      <h3>Formas de sair</h3>
+      <div class="method">
+        <div class="method-sig">$dto->toArray(): array</div>
+        <p class="method-desc">Todas as públicas. Enum backed → <code>value</code>; enum puro → <code>name</code>; DTO aninhado → array; data → <code>"Y-m-d H:i:s"</code> no fuso do objeto.</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">$dto->toJson(int $flags = 0): string &nbsp;·&nbsp; json_encode($dto)</div>
+        <p class="method-desc">Mesmo conteúdo do <code>toArray()</code>. <code>toJson()</code> preserva <code>10.0</code> como float.</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">$dto->only(string ...$paths): array &nbsp;·&nbsp; $dto->except(string ...$paths): array</div>
+        <p class="method-desc"><code>toArray()</code> parcial, com notação de ponto e <code>*</code> em qualquer profundidade.</p>
+      </div>
+      <div class="method">
+        <div class="method-sig">$dto->toArrayProvided(): array</div>
+        <p class="method-desc">Só o que veio na entrada, em todos os níveis (<a href="#fluxo">PATCH</a>).</p>
+      </div>
+
+<pre><code>$dto->toArray();
+<span class="cmt">// ['description' => 'Pedido', 'amount' => 150.9, 'status' => 'paid',
+//  'customer' => ['name' => 'Ana', 'email' => 'ana@x.com'],
+//  'items' => [['sku' => 'A1', 'qty' => 2, 'price' => 10.0]],
+//  'due_at' => '2026-11-01 00:00:00']</span>
+
+$dto->only(<span class="str">'description'</span>, <span class="str">'items.*.sku'</span>);
+<span class="cmt">// ['description' => 'Pedido', 'items' => [['sku' => 'A1']]]</span>
+
+$dto->except(<span class="str">'customer'</span>, <span class="str">'items.*.price'</span>);
+<span class="cmt">// tudo menos customer, e itens sem price</span></code></pre>
+
+      <h3>Campos nunca preenchidos</h3>
+      <p><code>toArray()</code> <strong>sempre traz todas</strong> as públicas. Se você criou com <code>new</code> e preencheu só parte, as demais saem com o que o <code>create()</code> daria sem a chave: default; <code>null</code> se nullable; senão o "zero" do tipo. Enum/data sem default saem <code>null</code>.</p>
+<pre><code>$dto = <span class="kw">new</span> OrderDto();
+$dto->description = <span class="str">'x'</span>;
+
+$dto->toArray();
+<span class="cmt">// ['description' => 'x', 'amount' => 0.0, 'status' => 'open', 'customer' => ['name' => '', 'email' => null], 'items' => [], 'due_at' => null]</span></code></pre>
     </section>
 
+    <!-- ============================================================ -->
     <section id="rastreamento">
-      <h2>Rastreamento (dirty)</h2>
-      <p>Inspirado no <code>isDirty()</code> do Eloquent, em três grupos.</p>
+      <h2>O que veio e o que mudou</h2>
+      <p>Dois rastreamentos independentes, no espírito do <code>Request</code> e do <code>isDirty()</code> do Eloquent.</p>
 
-      <h3>O que veio na entrada (sempre ligado)</h3>
-      <p>Separa "não mandou" de "mandou <code>null</code>" — ideal para update parcial (PATCH):</p>
-<pre><code>$dto = FinanceUpdateDto::from([<span class="str">'description'</span> => <span class="str">'Aluguel'</span>, <span class="str">'discount'</span> => <span class="kw">null</span>]);
+      <h3>1. O que veio na entrada — sempre ligado</h3>
+      <p>Cada propriedade lembra se a <strong>chave</strong> estava presente no <code>from()</code>/<code>create()</code>/<code>fill()</code>. Isso separa "não mandou" de "mandou <code>null</code>".</p>
 
-$dto->wasProvided(<span class="str">'discount'</span>);     <span class="cmt">// true  (veio null)</span>
-$dto->wasProvided(<span class="str">'amount'</span>);       <span class="cmt">// false (não veio)</span>
-$dto->provided();                 <span class="cmt">// ['description', 'discount']</span>
-$dto->toArrayProvided();          <span class="cmt">// ['description' => 'Aluguel', 'discount' => null]</span>
-
-$repository->update($id, $dto->toArrayProvided()); <span class="cmt">// não sobrescreve o resto</span></code></pre>
-
-      <h3>Recortes e caminhos</h3>
-      <p><code>only()</code> e <code>except()</code> aceitam notação de ponto e <code>*</code> em qualquer profundidade, misturando DTO, lista de DTO e array comum:</p>
-<pre><code>$dto->only(<span class="str">'description'</span>, <span class="str">'items.*.sku'</span>, <span class="str">'items.*.tag.name'</span>);
-<span class="cmt">// ['description' => 'Pedido', 'items' => [['sku' => 'A', 'tag' => ['name' => 'novo']], ...]]</span>
-
-$dto->only(<span class="str">'items.1.qty'</span>);              <span class="cmt">// ['items' => [1 => ['qty' => 2]]]</span>
-$dto->except(<span class="str">'items.*.qty'</span>, <span class="str">'customer.document'</span>);</code></pre>
-      <ul>
-        <li>O primeiro segmento precisa ser propriedade pública: erro de digitação lança <code>PzDtoException</code>.</li>
-        <li>Dentro dele, caminho inexistente é ignorado; lista percorrida por <code>*</code> mantém os índices.</li>
-        <li>O resultado segue a ordem das propriedades, não a ordem dos caminhos pedidos.</li>
-      </ul>
-
-      <h3>No estilo do Request do Laravel</h3>
       <table>
-        <thead>
-          <tr><th>Laravel (Request)</th><th>PzDto</th><th>O que faz</th></tr>
-        </thead>
+        <thead><tr><th>Método</th><th>O que responde</th></tr></thead>
         <tbody>
-          <tr><td><code>input('a.b')</code></td><td><code>get('items.0.sku', $default)</code></td><td>valor real (DTO, enum, data); <code>*</code> devolve lista</td></tr>
-          <tr><td><code>has</code> / <code>hasAny</code></td><td><code>wasProvided</code> / <code>wasProvidedAny</code></td><td>a chave veio? aceita caminho; com <code>*</code> todos os itens precisam ter</td></tr>
-          <tr><td><code>missing</code></td><td><code>missing</code></td><td><code>! wasProvided()</code></td></tr>
-          <tr><td><code>filled</code> / <code>anyFilled</code> / <code>isNotFilled</code></td><td>iguais</td><td>veio e não é null, string em branco nem array vazio</td></tr>
-          <tr><td><code>whenHas</code> / <code>whenFilled</code></td><td><code>whenProvided</code> / <code>whenFilled</code></td><td><code>$callback($valor, $dto)</code>, senão <code>$default($dto)</code></td></tr>
-          <tr><td><code>merge</code> / <code>mergeIfMissing</code></td><td><code>fill</code> / <code>fillMissing</code></td><td>atribui convertendo e validando (tudo ou nada) e marca como recebido</td></tr>
+          <tr><td><code>wasProvided('a', 'b.c', 'items.*.sku')</code></td><td>Todas as chaves vieram? (<code>*</code>: lista não vazia e todos os itens têm a chave)</td></tr>
+          <tr><td><code>wasProvidedAny(...)</code></td><td>Alguma veio?</td></tr>
+          <tr><td><code>missing(...)</code></td><td>Alguma <strong>não</strong> veio?</td></tr>
+          <tr><td><code>filled(...)</code></td><td>Veio <strong>e</strong> está preenchida (não null, não <code>''</code>/espaços, não <code>[]</code>)</td></tr>
+          <tr><td><code>anyFilled(...)</code> / <code>isNotFilled(...)</code></td><td>Alguma preenchida? / Nenhuma preenchida?</td></tr>
+          <tr><td><code>provided()</code></td><td>Nomes das propriedades (1º nível) que vieram</td></tr>
+          <tr><td><code>get('items.0.sku', $default)</code></td><td>Valor pelo caminho (real: DTO, enum, DateTime). <code>'items.*.sku'</code> devolve lista</td></tr>
+          <tr><td><code>whenProvided('x', fn ($v, $dto) => …, fn ($dto) => …)</code></td><td>Executa o callback se veio; senão o default. Encadeável</td></tr>
+          <tr><td><code>whenFilled(...)</code></td><td>Idem, se preenchida</td></tr>
+          <tr><td><code>fill([...])</code></td><td>Atribui convertendo e validando (tudo ou nada) e marca como recebido</td></tr>
+          <tr><td><code>fillMissing([...])</code></td><td><code>fill()</code> só das que ainda não vieram (defaults de negócio)</td></tr>
+          <tr><td><code>toArrayProvided()</code></td><td>Array só com o que veio, em todos os níveis</td></tr>
         </tbody>
       </table>
-<pre><code>$dto->whenFilled(<span class="str">'customer.document'</span>, fn ($doc) => $this->checkDocument($doc));
-$dto->fill([<span class="str">'amount'</span> => <span class="str">'10,5'</span>]);          <span class="cmt">// 10.5, validado; wasProvided('amount') = true</span></code></pre>
-      <p><code>toArrayProvided()</code> também desce nos aninhados: cada DTO (direto ou em lista) entrega só os campos que vieram para ele — PATCH aninhado não sobrescreve o que não foi enviado.</p>
 
-      <h3>O que mudou (opt-in)</h3>
-      <p>Desligado por padrão. Três formas de ligar:</p>
-      <table>
-        <thead>
-          <tr><th>Forma</th><th>Quando usar</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>$dto->trackChanges()</code></td><td>numa instância qualquer, inclusive criada com <code>new</code></td></tr>
-          <tr><td><code>X::fromTracked($dados)</code></td><td>na criação; mesmos parâmetros do <code>from()</code></td></tr>
-          <tr><td><code>#[TrackChanges]</code> na classe</td><td>DTO que sempre precisa do dirty: todo <code>from()</code>/<code>create()</code> dele e das filhas já nasce rastreando (não vale para <code>new</code>)</td></tr>
-        </tbody>
-      </table>
-<pre><code><span class="kw">use</span> Puzl\PzDto\Attributes\TrackChanges;
+<pre><code>$dto = OrderUpdateDto::from([<span class="str">'description'</span> => <span class="str">'Novo'</span>, <span class="str">'due_at'</span> => <span class="kw">null</span>]);
 
-#[TrackChanges]
-<span class="kw">class</span> FinanceUpdateDto <span class="kw">extends</span> PzDto { ... }
+$dto->wasProvided(<span class="str">'description'</span>);      <span class="cmt">// true</span>
+$dto->wasProvided(<span class="str">'due_at'</span>);           <span class="cmt">// true  — veio null</span>
+$dto->filled(<span class="str">'due_at'</span>);                <span class="cmt">// false — veio, mas vazio</span>
+$dto->missing(<span class="str">'amount'</span>);               <span class="cmt">// true</span>
+$dto->provided();                      <span class="cmt">// ['description', 'due_at']</span>
 
-FinanceUpdateDto::from($dados)->isDirty();      <span class="cmt">// false, já rastreando</span>
-OutroDto::fromTracked($dados)->isDirty();       <span class="cmt">// false, já rastreando</span></code></pre>
-      <p>Uso:</p>
-<pre><code>$dto = FinanceUpdateDto::from($dados)->trackChanges();
+$dto->whenProvided(<span class="str">'due_at'</span>, <span class="kw">fn</span> ($date) => $this->reschedule($order, $date))
+    ->whenFilled(<span class="str">'description'</span>, <span class="kw">fn</span> ($text) => $this->log($text));
 
-$dto->amount = <span class="fn">15</span>;
-$dto->isDirty();                  <span class="cmt">// true</span>
-$dto->isDirty(<span class="str">'description'</span>);     <span class="cmt">// false</span>
-$dto->isClean(<span class="str">'description'</span>);     <span class="cmt">// true</span>
-$dto->getDirty();                 <span class="cmt">// ['amount' => 15.0]</span>
-$dto->getOriginal(<span class="str">'amount'</span>);      <span class="cmt">// 10.0</span>
-$dto->getDirtyPaths();            <span class="cmt">// ['amount' => 15.0, 'items.1.qty' => 3] — desce nos aninhados</span>
-$dto->syncOriginal();             <span class="cmt">// estado atual vira o original</span></code></pre>
-      <ul>
-        <li>DTO aninhado alterado (<code>$dto->address->city = 'RJ'</code>) suja o campo do pai, inclusive em listas.</li>
-        <li>DTO aninhado trocado por outra instância é comparado pelo conteúdo; enums por case; datas pelo instante e fuso.</li>
-        <li>Voltar ao valor original deixa o campo limpo.</li>
-        <li>Sem rastreamento ligado, <code>isDirty()</code>/<code>isClean()</code>/<code>getDirty()</code>/<code>getOriginal()</code> lançam <code>PzDtoException</code>; <code>isTrackingChanges()</code> diz se está ligado.</li>
-      </ul>
-      <div class="callout callout-warn">
-        <div class="callout-title">Por que opt-in?</div>
-        Guardar o original de cada instância praticamente dobra a memória de listas grandes (benchmark: 10 mil DTOs com 30 campos e aninhados, 17,5 → 32,9 MB). O <code>provided</code> custa ~4% no <code>from()</code> e fica sempre ligado. Rode <code>composer bench</code> para medir.
-      </div>
+$dto->fillMissing([<span class="str">'status'</span> => <span class="str">'open'</span>]);  <span class="cmt">// aplica só se status não veio</span>
+$dto->toArrayProvided();                   <span class="cmt">// ['description' => 'Novo', 'due_at' => null, 'status' => 'open']</span></code></pre>
+
       <div class="callout callout-info">
-        <div class="callout-title">DateTime mutável</div>
-        A cópia do original é rasa: <code>$dto->date->modify('+1 day')</code> em <code>DateTime</code> mutável não é detectado. Use <code>DateTimeImmutable</code> (ou atribua uma nova instância).
+        <div class="callout-title">Caminhos: regras rápidas</div>
+        <p style="margin:0">O <strong>primeiro segmento</strong> precisa ser propriedade pública — erro de digitação lança <code>PzDtoException</code> na hora. Dentro dele, caminho inexistente só devolve <code>false</code>/<code>$default</code>. Funciona em DTO aninhado, lista de DTO e array comum.</p>
+      </div>
+
+      <h3>2. O que mudou depois — opt-in (dirty)</h3>
+      <p>Guarda um snapshot e compara. Desligado por padrão porque custa memória em listas grandes. Três formas de ligar:</p>
+<pre><code><span class="cmt">// a) na instância</span>
+$dto = OrderUpdateDto::from($dados)->trackChanges();
+
+<span class="cmt">// b) na criação</span>
+$dto = OrderUpdateDto::fromTracked($dados);
+
+<span class="cmt">// c) na classe: todo from()/create() dela (e das filhas) já nasce rastreando</span>
+#[PzTrackChanges]
+<span class="kw">final class</span> OrderUpdateDto <span class="kw">extends</span> PzDto { ... }</code></pre>
+
+      <table>
+        <thead><tr><th>Método</th><th>O que responde</th></tr></thead>
+        <tbody>
+          <tr><td><code>isDirty()</code> / <code>isDirty('a', 'b')</code></td><td>Algo mudou? / Algum desses mudou? Filho alterado suja o pai</td></tr>
+          <tr><td><code>isClean(...)</code></td><td>O inverso</td></tr>
+          <tr><td><code>getDirty()</code></td><td><code>['campo' => valorAtual]</code> (1º nível)</td></tr>
+          <tr><td><code>getDirtyPaths()</code></td><td>Em notação de ponto, já serializado, descendo em aninhados: <code>['items.1.qty' => 3]</code></td></tr>
+          <tr><td><code>getOriginal('campo')</code> / <code>getOriginal()</code></td><td>Valor antes das mudanças (um ou todos)</td></tr>
+          <tr><td><code>syncOriginal()</code></td><td>O estado atual vira o original</td></tr>
+          <tr><td><code>isTrackingChanges()</code></td><td>Está ligado?</td></tr>
+        </tbody>
+      </table>
+
+<pre><code>$dto = OrderDto::fromTracked([<span class="str">'amount'</span> => 10, <span class="str">'customer'</span> => [<span class="str">'name'</span> => <span class="str">'Ana'</span>]]);
+
+$dto->isDirty();                   <span class="cmt">// false</span>
+
+$dto->amount = 15;
+$dto->customer->name = <span class="str">'Bia'</span>;
+
+$dto->isDirty(<span class="str">'amount'</span>);           <span class="cmt">// true</span>
+$dto->isDirty(<span class="str">'customer'</span>);         <span class="cmt">// true — o filho mudou</span>
+$dto->getDirty();                  <span class="cmt">// ['amount' => 15.0, 'customer' => CustomerDto]</span>
+$dto->getDirtyPaths();             <span class="cmt">// ['amount' => 15.0, 'customer.name' => 'Bia']</span>
+$dto->getOriginal(<span class="str">'amount'</span>);       <span class="cmt">// 10.0</span>
+$dto->customer->getOriginal(<span class="str">'name'</span>); <span class="cmt">// 'Ana'</span>
+
+$dto->amount = 10;
+$dto->isDirty(<span class="str">'amount'</span>);           <span class="cmt">// false — voltou ao original</span>
+
+$dto->syncOriginal();              <span class="cmt">// zera o dirty</span></code></pre>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">Limites que vale saber</div>
+        <ul style="margin:0">
+          <li><code>getOriginal('customer')</code> devolve a <strong>mesma instância</strong> do filho (snapshot raso). Para o valor antigo de dentro, pergunte ao filho: <code>$dto->customer->getOriginal('name')</code>, ou use <code>getDirtyPaths()</code>.</li>
+          <li><code>DateTime</code> mutável alterado no lugar (<code>->modify()</code>) não é detectado. Prefira <code>DateTimeImmutable</code>.</li>
+          <li><code>#[PzTrackChanges]</code> não vale para <code>new</code> (o construtor não é interceptado): chame <code>->trackChanges()</code>.</li>
+          <li><code>clone $dto</code> é profundo: filhos e snapshot são copiados; mexer no clone não suja o original.</li>
+        </ul>
       </div>
     </section>
 
+    <!-- ============================================================ -->
     <section id="eloquent">
       <h2>Laravel / Eloquent</h2>
-      <p>O pacote não depende do Laravel, mas reconhece Eloquent Model, Collection e paginator quando estão instalados.</p>
+      <p>O pacote não depende do Laravel, mas reconhece Model, Collection e paginator quando estão presentes.</p>
 
       <h3>Model → DTO</h3>
-<pre><code>$dto = OrderDto::from($order);                 <span class="cmt">// uma Model</span>
-$dtos = OrderDto::collect(Order::with(<span class="str">'items'</span>)->get()); <span class="cmt">// Collection, paginator ou array</span></code></pre>
-      <p>O <code>from()</code> lê a Model <strong>campo a campo</strong> com <code>getAttribute()</code>, e não via <code>$model->toArray()</code>:</p>
-      <table>
-        <thead>
-          <tr><th>Na Model</th><th>No DTO</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>datetime</code>, <code>date</code>, timestamps</td><td>Carbon no fuso da aplicação. O <code>toArray()</code> da Model entregaria string ISO em <strong>UTC</strong> (3h a mais em <code>America/Sao_Paulo</code>).</td></tr>
-          <tr><td>data em prop <code>string</code></td><td><code>Y-m-d H:i:s</code>; <code>Y-m-d</code> no cast <code>date</code>; o formato do cast em <code>date:d/m/Y</code></td></tr>
-          <tr><td><code>boolean</code>, <code>integer</code>, <code>float</code>, <code>decimal:2</code>, <code>array</code>, <code>object</code>, enum</td><td>convertidos para o tipo da prop</td></tr>
-          <tr><td><code>$hidden</code></td><td>disponível (o DTO declara o campo explicitamente)</td></tr>
-          <tr><td><code>$appends</code></td><td>lido pelo accessor</td></tr>
-          <tr><td>relação carregada</td><td>DTO ou lista de DTOs; <code>order_items</code> encontra <code>orderItems</code></td></tr>
-          <tr><td>relação não carregada</td><td>ausente — <strong>nunca</strong> dispara lazy loading; <code>wasProvided()</code> = false</td></tr>
-        </tbody>
-      </table>
-      <p>Só os campos que o DTO declara são lidos. <code>collect()</code> preserva as chaves e junta os erros de todos os itens com o índice no caminho (<code>1.name</code>).</p>
+      <p><code>Dto::from($model)</code> lê a Model <strong>campo a campo</strong> (<code>getAttribute()</code>), e não pelo <code>$model->toArray()</code>. Na prática:</p>
+      <ul>
+        <li><strong>Casts aplicados</strong>: <code>decimal</code>, <code>boolean</code>, <code>array</code>, enum, <code>datetime</code>.</li>
+        <li><strong>Datas como Carbon no fuso da aplicação</strong> (o <code>toArray()</code> da Model converteria para ISO em UTC).</li>
+        <li><strong><code>$hidden</code> disponível</strong>, <strong><code>$appends</code></strong> e accessors (<code>getFooAttribute</code>, <code>Attribute::make</code>) mesmo fora de <code>$appends</code>.</li>
+        <li><strong>Relações só se já carregadas</strong> — nunca dispara lazy loading. <code>order_items</code> no DTO encontra a relação <code>orderItems</code>.</li>
+        <li>Propriedade <code>string</code> recebendo data vem formatada: <code>Y-m-d H:i:s</code>, <code>Y-m-d</code> (cast <code>date</code>) ou o formato do cast (<code>date:d/m/Y</code>).</li>
+        <li>Só os campos que o DTO declara são lidos.</li>
+      </ul>
+
+<pre><code><span class="kw">final class</span> OrderViewDto <span class="kw">extends</span> PzDto
+{
+    <span class="kw">public</span> int $id;
+    <span class="kw">public</span> float $amount;                <span class="cmt">// cast decimal:2 → "10.50" → 10.5</span>
+    <span class="kw">public</span> OrderStatus $status;          <span class="cmt">// cast enum</span>
+    <span class="kw">public</span> \DateTimeInterface $paid_at;  <span class="cmt">// Carbon, America/Sao_Paulo</span>
+    <span class="kw">public</span> string $created_at;           <span class="cmt">// "2026-10-22 09:30:00"</span>
+
+    #[PzDtoAttribute]
+    <span class="kw">public</span> ?CustomerDto $customer;       <span class="cmt">// relação carregada → DTO; não carregada → null</span>
+
+    #[PzDtoAttribute(OrderItemDto::class)]
+    <span class="kw">public</span> array $order_items = [];      <span class="cmt">// relação orderItems</span>
+}
+
+$order = Order::with(<span class="str">'customer'</span>, <span class="str">'orderItems'</span>)->find(1);
+$dto = OrderViewDto::from($order);
+
+$dto->wasProvided(<span class="str">'customer'</span>);   <span class="cmt">// true (carregada)</span>
+$dto->wasProvided(<span class="str">'seller'</span>);     <span class="cmt">// false (não carregada, não foi lida)</span></code></pre>
+
+      <h3>Listas: Collection e paginator</h3>
+<pre><code>$dtos = OrderViewDto::collect(Order::with(<span class="str">'customer'</span>)->get());
+$dtos = OrderViewDto::collect(Order::paginate(20));   <span class="cmt">// itens da página</span>
+$dtos = OrderViewDto::collect([$arr1, $arr2]);         <span class="cmt">// arrays também</span>
+
+<span class="cmt">// Erros de todos os itens juntos:</span>
+<span class="cmt">// ['1.name' => [...], '3.qty' => [...]]</span></code></pre>
 
       <h3>DTO → Model</h3>
-      <p>Datas saem do <code>toArray()</code> como <code>Y-m-d H:i:s</code>, prontas para os casts da Model.</p>
+      <p>Datas saem como <code>Y-m-d H:i:s</code> e enums como <code>value</code>, prontos para <code>fill()</code>:</p>
 <pre><code><span class="cmt">// criar</span>
-Order::create($dto->toArray());
+$order = Order::create($dto->except(<span class="str">'items'</span>, <span class="str">'customer'</span>));
 
-<span class="cmt">// atualizar: só o que veio na requisição</span>
+<span class="cmt">// atualizar parcialmente — só o que veio na requisição</span>
 $order->update($dto->toArrayProvided());
 
-<span class="cmt">// ou: só o que mudou desde o from()</span>
-$dto = OrderDto::fromTracked($order);
-<span class="cmt">// ... altera o DTO ...</span>
-$order->update($dto->only(...array_keys($dto->getDirty()))); <span class="cmt">// only() serializa datas/enums/DTOs</span></code></pre>
-      <div class="callout callout-warn">
-        <div class="callout-title">Nunca toArray() em update</div>
-        <code>toArray()</code> traz <strong>todas</strong> as propriedades (as não preenchidas com default/zero/null) e sobrescreveria colunas que não vieram. Em update use <code>toArrayProvided()</code>.
-      </div>
+<span class="cmt">// atualizar campos escolhidos</span>
+$order->fill($dto->only(<span class="str">'amount'</span>, <span class="str">'status'</span>, <span class="str">'paid_at'</span>))->save();</code></pre>
     </section>
 
-    <section id="validacoes">
-      <h2>Regras disponíveis</h2>
-      <p>Namespace <code>Puzl\PzDto\Attributes\Validation</code>. Todas aceitam <code>message:</code>. As regras rodam <strong>depois</strong> da conversão e ignoram <code>null</code> (exceto <code>Required</code> e <code>IsNotEmpty</code>).</p>
+    <!-- ============================================================ -->
+    <section id="erros">
+      <h2>Erros e exceções</h2>
+
       <table>
-        <thead>
-          <tr><th>Atributo</th><th>Valida</th></tr>
-        </thead>
+        <thead><tr><th>Exceção</th><th>Quando</th><th>O que fazer</th></tr></thead>
         <tbody>
-          <tr><td><code>#[Required]</code></td><td>chave presente e não nula/vazia</td></tr>
-          <tr><td><code>#[IsNotEmpty]</code></td><td><code>empty()</code> do valor recebido</td></tr>
-          <tr><td><code>#[IsString]</code>, <code>#[IsInt]</code>, <code>#[IsFloat]</code>, <code>#[IsBoolean]</code></td><td>tipo do valor <strong>recebido</strong> (<code>"5"</code> passa em IsInt, <code>"12abc"</code> não)</td></tr>
-          <tr><td><code>#[Min(n)]</code>, <code>#[Max(n)]</code></td><td>número; tamanho da string; itens do array</td></tr>
-          <tr><td><code>#[Length(min:, max:)]</code></td><td>caracteres da string (multibyte)</td></tr>
-          <tr><td><code>#[Matches('/regex/')]</code></td><td>regex</td></tr>
-          <tr><td><code>#[IsEmail]</code>, <code>#[IsUrl]</code>, <code>#[IsUUID]</code></td><td>formatos</td></tr>
-          <tr><td><code>#[HasExtension(['pdf'])]</code></td><td>extensão de arquivo</td></tr>
-          <tr><td><code>#[IsDateString(IsDateStringFormat::DATE, min:, max:)]</code></td><td>data em string (DATE, DATETIME, ISO8601, FLEXIBLE)</td></tr>
-          <tr><td><code>#[In([...], strict: false)]</code></td><td>valor (ou itens do array) na lista; enum compara pelo value</td></tr>
+          <tr><td><code>PzDtoValidationException</code></td><td>Dados não converteram para o tipo (ou não passaram nas regras do <a href="#bonus-validacao">bônus</a>). Reúne <strong>todos</strong> os campos, inclusive aninhados</td><td>Responder 422 com <code>->errors()</code></td></tr>
+          <tr><td><code>PzDtoInputException</code></td><td>Entrada da raiz ilegível: JSON inválido, escalar no lugar de array</td><td>Responder 400/422; é input do cliente</td></tr>
+          <tr><td><code>PzDtoException</code> (pai das duas)</td><td>Erro de <strong>uso</strong>: atributo apontando para classe errada, regex inválida, classe abstrata, atribuição impossível, rastreamento desligado…</td><td>Corrigir o código; não é erro do usuário</td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="kw">try</span> {
+    $dto = OrderCreateDto::from($payload);
+} <span class="kw">catch</span> (PzDtoValidationException $e) {
+    $e->errors();       <span class="cmt">// ['items.1.qty' => ['The qty field must be an integer.'], ...]</span>
+    $e->dtoClass();     <span class="cmt">// OrderCreateDto::class</span>
+    $e->getMessage();   <span class="cmt">// 'The qty field must be an integer. (and 2 more errors) [App\Dto\OrderCreateDto]'</span>
+}</code></pre>
+
+      <h3>Integrando com o Laravel (422 automático)</h3>
+      <p>O formato de <code>errors()</code> é o mesmo do <code>ValidationException</code>. Uma linha no handler resolve:</p>
+<pre><code><span class="cmt">// bootstrap/app.php (Laravel 11+)</span>
+->withExceptions(<span class="kw">function</span> (Exceptions $exceptions) {
+    $exceptions->render(<span class="kw">function</span> (PzDtoValidationException $e) {
+        <span class="kw">throw</span> ValidationException::withMessages($e->errors());
+    });
+})
+
+<span class="cmt">// ou app/Exceptions/Handler.php (Laravel 10)</span>
+$this->renderable(<span class="kw">fn</span> (PzDtoValidationException $e) => <span class="kw">throw</span> ValidationException::withMessages($e->errors()));</code></pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="api">
+      <h2>API resumida</h2>
+      <table>
+        <thead><tr><th>Grupo</th><th>Métodos</th></tr></thead>
+        <tbody>
+          <tr><td>Criar</td><td><code>from()</code> · <code>create()</code> · <code>collect()</code> · <code>fromTracked()</code> · <code>blank()</code></td></tr>
+          <tr><td>Sair</td><td><code>toArray()</code> · <code>toJson()</code> · <code>only()</code> · <code>except()</code> · <code>toArrayProvided()</code> · <code>jsonSerialize()</code></td></tr>
+          <tr><td>O que veio</td><td><code>wasProvided()</code> · <code>wasProvidedAny()</code> · <code>missing()</code> · <code>filled()</code> · <code>anyFilled()</code> · <code>isNotFilled()</code> · <code>provided()</code> · <code>get()</code> · <code>whenProvided()</code> · <code>whenFilled()</code> · <code>fill()</code> · <code>fillMissing()</code></td></tr>
+          <tr><td>O que mudou</td><td><code>trackChanges()</code> · <code>isTrackingChanges()</code> · <code>isDirty()</code> · <code>isClean()</code> · <code>getDirty()</code> · <code>getDirtyPaths()</code> · <code>getOriginal()</code> · <code>syncOriginal()</code></td></tr>
+          <tr><td>Validar (bônus)</td><td><code>assertValid()</code></td></tr>
+          <tr><td>Configurar (estáticos)</td><td><code>PzDto::useLocale()</code> · <code>PzDto::useMessages()</code> · <code>PzDto::translateMessagesUsing()</code></td></tr>
+          <tr><td>Atributos</td><td><code>#[PzDtoAttribute]</code> · <code>#[PzEnumAttribute]</code> · <code>#[PzTrackChanges]</code> · (bônus) regras em <code>Attributes\Validation</code></td></tr>
+          <tr><td>Contratos (bônus)</td><td><code>ValidationRule</code> · <code>ContextualValidationRule</code></td></tr>
+          <tr><td>Exceções</td><td><code>PzDtoException</code> › <code>PzDtoValidationException</code>, <code>PzDtoInputException</code></td></tr>
         </tbody>
       </table>
     </section>
 
-    <section id="erros">
-      <h2>Erros</h2>
-      <p>Conversões que falham e regras violadas são <strong>reunidas</strong> e lançadas numa única <code>PzDtoValidationException</code> (extends <code>InvalidArgumentException</code>):</p>
-<pre><code><span class="kw">try</span> {
-    OrderDto::from($dados);
-} <span class="kw">catch</span> (PzDtoValidationException $e) {
-    $e->errors();   <span class="cmt">// ['customer.name' => ['The name field is required.'], 'items.1.qty' => [...]]</span>
-    $e->dtoClass(); <span class="cmt">// OrderDto::class</span>
-}</code></pre>
-      <p>Placeholders nas mensagens: <code>:field</code>, <code>:min</code>, <code>:max</code>, <code>:values</code>. Para traduzir mensagens customizadas (ex.: chaves de <code>lang/</code>), registre no <code>AppServiceProvider</code>:</p>
-<pre><code>PzDto::translateMessagesUsing(fn (string $key, array $replace) => trans($key, $replace));</code></pre>
-      <p>Erros de <strong>declaração</strong> (ex.: <code>#[DtoAttribute]</code> em <code>array</code> sem classe) lançam <code>PzDtoException</code>.</p>
-    </section>
-
-    <section id="regra-customizada">
-      <h2>Regra customizada</h2>
-<pre><code>#[\Attribute(\Attribute::TARGET_PROPERTY)]
-<span class="kw">final class</span> Cpf <span class="kw">implements</span> \Puzl\PzDto\Contracts\ValidationRule
-{
-    <span class="kw">public function</span> validate(mixed $value, mixed $raw, string $field): ?string
-    {
-        <span class="kw">return</span> CpfValidator::isValid($value) ? <span class="kw">null</span> : <span class="str">"CPF inválido em $field"</span>;
-    }
-}</code></pre>
-    </section>
-
+    <!-- ============================================================ -->
     <section id="migracao">
       <h2>Migrando da FromArrayTrait</h2>
-      <p>PzDto e <code>FromArrayTrait</code> <strong>convivem</strong> no mesmo projeto: a migração é gradual, DTO a DTO.</p>
+      <p>A migração é gradual, DTO a DTO. Os dois convivem e o aninhamento cruzado funciona nos dois sentidos (PzDto com filho legado e vice-versa).</p>
+
       <ol>
-        <li>Troque <code>extends BaseDto</code> + <code>use FromArrayTrait;</code> por <code>extends PzDto</code> (ou por uma base nova do projeto que estenda <code>PzDto</code>).</li>
-        <li>Troque os imports <code>App\Helpers\DtoAttribute</code>/<code>EnumAttribute</code> por <code>Puzl\PzDto\Attributes\...</code> (se esquecer, os antigos continuam reconhecidos pelo nome).</li>
-        <li>Revise as <a href="#diferencas">diferenças de comportamento</a> no DTO migrado.</li>
+        <li>Troque <code>use FromArrayTrait;</code> por <code>extends PzDto</code> (ou por uma base nova que estenda <code>PzDto</code>).</li>
+        <li>Troque os imports: <code>App\Helpers\DtoAttribute</code> → <code>Puzl\PzDto\Attributes\PzDtoAttribute</code> (idem <code>EnumAttribute</code>). Durante a transição os atributos antigos também são reconhecidos pelo nome curto.</li>
+        <li>Revise as <a href="#diferencas">diferenças de comportamento</a> — a maioria são correções de bugs que o código pode estar contornando.</li>
+        <li>Rode os testes do módulo.</li>
       </ol>
-      <p>Aninhamento cruzado funciona nos dois sentidos: um PzDto pode ter <code>#[DtoAttribute(DtoLegado::class)]</code> e um DTO legado pode ter uma propriedade do tipo de um PzDto.</p>
-      <div class="callout callout-warn">
-        <div class="callout-title">BaseDto durante a transição</div>
-        Não faça <code>BaseDto extends PzDto</code> enquanto houver DTOs com <code>use FromArrayTrait</code> herdando dele — as assinaturas conflitam. Use uma base nova para os DTOs migrados e, quando o último legado sair, aponte <code>BaseDto</code> para <code>PzDto</code>.
+
+      <div class="vs-grid">
+        <div class="vs-box no">
+          <h4>Antes</h4>
+<pre><code><span class="kw">use</span> App\Helpers\FromArrayTrait;
+<span class="kw">use</span> App\Helpers\DtoAttribute;
+
+<span class="kw">class</span> OrderCreateDto
+{
+    <span class="kw">use</span> FromArrayTrait;
+
+    #[PzDtoAttribute(namespace: ItemDto::class)]
+    <span class="kw">public</span> array $items;
+}</code></pre>
+        </div>
+        <div class="vs-box yes">
+          <h4>Depois</h4>
+<pre><code><span class="kw">use</span> Puzl\PzDto\PzDto;
+<span class="kw">use</span> Puzl\PzDto\Attributes\PzDtoAttribute;
+
+<span class="kw">class</span> OrderCreateDto <span class="kw">extends</span> PzDto
+{
+    #[PzDtoAttribute(ItemDto::class)]
+    <span class="kw">public</span> array $items = [];
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="callout callout-danger">
+        <div class="callout-title">Não faça <code>BaseDto extends PzDto</code> enquanto houver filhos com a trait</div>
+        <p style="margin:0">As assinaturas de <code>from()</code>/<code>toArray()</code> conflitam. Crie uma base nova (<code>BaseDtoV2</code>) durante a transição e unifique no fim.</p>
       </div>
     </section>
 
+    <!-- ============================================================ -->
     <section id="diferencas">
       <h2>Diferenças de comportamento</h2>
       <table>
-        <thead>
-          <tr><th>Situação</th><th>FromArrayTrait</th><th>PzDto</th></tr>
-        </thead>
+        <thead><tr><th>Situação</th><th>FromArrayTrait</th><th>PzDto</th></tr></thead>
         <tbody>
           <tr><td><code>?int</code> com <code>0</code> / <code>?array</code> com <code>[]</code></td><td><code>null</code></td><td><code>0</code> / <code>[]</code></td></tr>
-          <tr><td><code>?int $x = 5</code> com <code>null</code></td><td><code>5</code></td><td><code>null</code></td></tr>
+          <tr><td><code>?int $x = 5</code> com <code>null</code> explícito</td><td><code>5</code></td><td><code>null</code></td></tr>
           <tr><td>Enum com valor inexistente</td><td>primeiro case</td><td>erro de validação</td></tr>
-          <tr><td>Filho sem <code>use FromArrayTrait</code></td><td>instancia o pai</td><td>instancia o filho</td></tr>
+          <tr><td>Filho sem repetir a trait</td><td>instancia o pai</td><td>instancia o filho</td></tr>
           <tr><td>Union <code>bool|int</code> com <code>true</code></td><td>fatal</td><td><code>true</code></td></tr>
           <tr><td><code>"12abc"</code> em <code>int</code></td><td><code>12</code></td><td>erro de validação</td></tr>
           <tr><td><code>"1,5"</code> em <code>float</code></td><td><code>1.0</code></td><td><code>1.5</code></td></tr>
-          <tr><td>JSON inválido no <code>from()</code></td><td>DTO vazio</td><td><code>PzDtoException</code></td></tr>
+          <tr><td><code>2</code> em <code>bool</code></td><td><code>false</code></td><td><code>true</code> (número ≠ 0)</td></tr>
+          <tr><td>JSON inválido no <code>from()</code></td><td>DTO vazio</td><td><code>PzDtoInputException</code></td></tr>
           <tr><td>Data ausente em não-nullable</td><td>ano -0001</td><td>erro de validação</td></tr>
           <tr><td>Vários atributos na propriedade</td><td>só o primeiro</td><td>todos, em qualquer ordem</td></tr>
-          <tr><td><code>#[IsFloat]</code>/<code>#[IsBoolean]</code></td><td>checavam <code>is_int</code></td><td>checam o tipo certo</td></tr>
-          <tr><td>Validação × cast</td><td>antes do cast</td><td>depois do cast (regras de tipo olham o valor recebido)</td></tr>
+          <tr><td>Validação × cast</td><td>antes</td><td>depois (regras <code>Is*</code> olham o valor bruto)</td></tr>
           <tr><td>Construtor do DTO</td><td>chamado</td><td>não chamado</td></tr>
           <tr><td><code>toArray()</code> com campo não preenchido</td><td>chave some</td><td>sempre presente (regra do <code>create()</code>)</td></tr>
           <tr><td>Data no <code>toArray()</code></td><td><code>{date, timezone_type, timezone}</code></td><td><code>"Y-m-d H:i:s"</code></td></tr>
           <tr><td><code>from($model)</code> com data</td><td>string ISO em UTC</td><td>Carbon no fuso da aplicação</td></tr>
+          <tr><td>Enum puro no <code>toArray()</code></td><td>—</td><td><code>name</code> do case</td></tr>
         </tbody>
       </table>
     </section>
 
+    <!-- ============================================================ -->
     <section id="faq">
       <h2>Perguntas frequentes</h2>
 
       <h3>Preciso registrar algum Service Provider?</h3>
-      <p>Não. O pacote não tem config nem comando; basta estender <code>PzDto</code>.</p>
+      <p>Não. Nada de config nem comando; basta estender <code>PzDto</code>. Se quiser mensagens em português, uma linha no <code>boot()</code>: <code>PzDto::useLocale('pt_BR')</code>.</p>
+
+      <h3>Posso usar <code>new MeuDto()</code> e preencher na mão?</h3>
+      <p>Pode. Só lembre: nada foi "recebido" (<code>provided()</code> vazio), o rastreamento não liga sozinho e <code>toArray()</code> completa os campos vazios com o zero do tipo. <code>fill([...])</code> converte, valida e marca como recebido.</p>
+
+      <h3>Como copio um DTO?</h3>
+      <p><code>clone $dto</code> (profundo) ou <code>MeuDto::from($dto)</code> (revalida e marca tudo como recebido). Para preservar o "o que veio": <code>MeuDto::from($dto->toArrayProvided())</code>.</p>
+
+      <h3>Posso ter propriedades que não vêm do input (ex.: <code>user_id</code> do token)?</h3>
+      <p>Sim. Declare normalmente e preencha depois com <code>$dto->fill(['user_id' => auth()->id()])</code> — ou passe junto no array do <code>from()</code>. Propriedades <code>protected</code> entram no <code>from()</code> mas não saem no <code>toArray()</code>.</p>
 
       <h3>É lento por usar reflexão?</h3>
-      <p>A reflexão de cada classe (propriedades, tipos, atributos e regras) é lida uma vez e fica em cache estático — <code>from()</code> em listas grandes não refaz esse trabalho.</p>
+      <p>A reflexão de cada classe (propriedades, tipos, atributos, regras) é lida uma vez e fica em cache estático. Referência: 10 mil DTOs com 30 campos, um aninhado e uma lista de 3 itens em ~180 ms. O rastreamento de alterações é opt-in justamente para listas grandes não pagarem por ele.</p>
 
       <h3>Como rodo os testes do pacote?</h3>
 <pre><code>composer test</code></pre>
-      <p>Duas suítes: <code>Unit</code> (<code>tests/Unit</code>) e <code>Features</code> (<code>tests/Features</code> — convivência com a <code>FromArrayTrait</code> e reprodução dos bugs antigos).</p>
+      <p>Duas suítes: <code>Unit</code> (<code>tests/Unit</code>) e <code>Features</code> (<code>tests/Features</code> — Eloquent e convivência com a <code>FromArrayTrait</code>).</p>
 
       <h3>Onde está o código-fonte?</h3>
       <p>
-        <code>src/PzDto.php</code> — classe base (from, create, toArray, toJson, assertValid)<br>
-        <code>src/Attributes/*</code> — DtoAttribute, EnumAttribute e regras em <code>Validation/</code><br>
-        <code>src/Support/Caster.php</code> — conversão de tipos · <code>src/Support/ClassMetadata.php</code> — cache de reflexão<br>
-        <code>src/Exceptions/*</code> — PzDtoException, PzDtoValidationException
+        <code>src/PzDto.php</code> — classe base<br>
+        <code>src/Attributes/*</code> — PzDtoAttribute, PzEnumAttribute, PzTrackChanges e regras em <code>Validation/</code><br>
+        <code>src/Support/Caster.php</code> — conversão · <code>Exporter.php</code> — toArray · <code>ClassMetadata.php</code> — cache de reflexão · <code>Messages.php</code> — textos e idiomas<br>
+        <code>src/Exceptions/*</code> — PzDtoException, PzDtoValidationException, PzDtoInputException
       </p>
     </section>
 
+    <!-- ============================================================ -->
+    <section id="bonus-validacao">
+      <h2>Bônus: validação por atributo</h2>
+      <div class="callout callout-warn">
+        <div class="callout-title">Leia antes de usar</div>
+        <p style="margin:0">A função deste pacote é ser <strong>DTO</strong>: tipar e transportar dados. Validação de negócio a gente prioriza no <strong>FormRequest</strong> (entrada HTTP), nos <strong>Services</strong> e nas <strong>Entities</strong>. Os atributos abaixo existem para os casos em que o DTO é a única fronteira (fila, integração, import, CLI) ou para quem está migrando DTOs que já validavam. Não duplique no DTO uma regra que o FormRequest já cobre.</p>
+      </div>
+      <p>Como funciona: atributos de <code>Puzl\PzDto\Attributes\Validation</code> na propriedade; rodam depois do cast, dentro do mesmo <code>from()</code>; os erros saem junto com os de conversão na <code>PzDtoValidationException</code>.</p>
+<pre><code><span class="kw">use</span> Puzl\PzDto\Attributes\Validation\{PzRequired, PzLength, PzIsEmail};
+
+<span class="kw">final class</span> ImportCustomerDto <span class="kw">extends</span> PzDto
+{
+    #[PzRequired, PzLength(max: 120)]
+    <span class="kw">public</span> string $name;
+
+    #[PzIsEmail]
+    <span class="kw">public</span> ?string $email;
+}</code></pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="validacoes">
+      <h2>Regras disponíveis</h2>
+      <p>Namespace <code>Puzl\PzDto\Attributes\Validation</code>. Todas aceitam <code>message:</code> para texto próprio (placeholders <code>:field</code>, <code>:min</code>, <code>:max</code>, <code>:values</code>…). Podem ser combinadas na mesma propriedade, em qualquer ordem.</p>
+
+      <table>
+        <thead><tr><th>Regra</th><th>Passa quando</th><th>Exemplo</th></tr></thead>
+        <tbody>
+          <tr><td><code>PzRequired</code></td><td>Veio e não é null, <code>''</code>/espaços ou <code>[]</code></td><td><code>#[PzRequired]</code></td></tr>
+          <tr><td><code>PzRequiredIf</code></td><td>Como PzRequired, só quando outro campo tem o valor</td><td><code>#[PzRequiredIf('type', 'company')]</code></td></tr>
+          <tr><td><code>PzRequiredWith</code></td><td>Como PzRequired, só quando algum dos outros veio</td><td><code>#[PzRequiredWith('street', 'city')]</code></td></tr>
+          <tr><td><code>PzIsNotEmpty</code></td><td>Não é vazio no sentido do <code>empty()</code> (<code>0</code> e <code>'0'</code> falham)</td><td><code>#[PzIsNotEmpty]</code></td></tr>
+          <tr><td><code>PzIsString</code> / <code>PzIsInt</code> / <code>PzIsFloat</code> / <code>PzIsBoolean</code></td><td>O valor <strong>bruto</strong> tem o formato: <code>"5"</code> passa em PzIsInt, <code>"5.5"</code> não; <code>"1,5"</code> passa em PzIsFloat</td><td><code>#[PzIsInt]</code></td></tr>
+          <tr><td><code>PzMin(n)</code> / <code>PzMax(n)</code></td><td>Número: valor; string: nº de caracteres; array: nº de itens</td><td><code>#[PzMin(0)]</code>, <code>#[PzMax(10)]</code></td></tr>
+          <tr><td><code>PzLength(min, max)</code></td><td>Caracteres (multibyte) de uma string</td><td><code>#[PzLength(min: 3, max: 120)]</code></td></tr>
+          <tr><td><code>PzMatches(regex)</code></td><td><code>preg_match</code> casa</td><td><code>#[PzMatches('/^\d{5}-\d{3}$/')]</code></td></tr>
+          <tr><td><code>PzIn([...])</code></td><td>Está na lista (enum compara pelo value/name; array: todos os itens)</td><td><code>#[PzIn(['a', 'b'])]</code>, <code>#[PzIn([Status::OPEN])]</code></td></tr>
+          <tr><td><code>PzIsEmail</code> / <code>PzIsUrl</code> / <code>PzIsUUID</code></td><td><code>filter_var</code> / UUID v1–8, nil e max</td><td><code>#[PzIsEmail]</code></td></tr>
+          <tr><td><code>PzHasExtension([...])</code></td><td>Nome de arquivo com extensão permitida (vazio = qualquer, mas precisa ter)</td><td><code>#[PzHasExtension(['pdf', 'xml'])]</code></td></tr>
+          <tr><td><code>PzIsDateString(format, min, max)</code></td><td>String no formato <code>DATE</code> (padrão), <code>DATETIME</code>, <code>ISO8601</code> ou <code>FLEXIBLE</code>, dentro dos limites</td><td><code>#[PzIsDateString(min: '2020-01-01')]</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Quando cada regra ignora o valor</h3>
+      <ul>
+        <li><strong>Só <code>PzRequired*</code> e <code>PzIsNotEmpty</code> cobram presença.</strong> As demais ignoram <code>null</code> (e a maioria ignora <code>''</code>): para "obrigatório e e-mail", combine <code>#[PzRequired, PzIsEmail]</code>.</li>
+        <li><code>PzLength</code>, <code>PzMatches</code>, <code>PzIsEmail</code>… ignoram valor que não é string. <code>PzMin</code>/<code>PzMax</code> ignoram o que não é número, string nem array.</li>
+        <li>A validação roda <strong>depois</strong> do cast: <code>PzMin(18)</code> em <code>int $age</code> vê <code>20</code> mesmo que tenha vindo <code>"20"</code>. As regras <code>Is*</code> olham o valor bruto de propósito.</li>
+      </ul>
+
+<pre><code><span class="kw">final class</span> SignupDto <span class="kw">extends</span> PzDto
+{
+    #[PzRequired, PzLength(min: 3, max: 80)]
+    <span class="kw">public</span> string $name;
+
+    #[PzRequired, PzIsEmail]
+    <span class="kw">public</span> string $email;
+
+    #[PzIsInt, PzMin(18), PzMax(120)]
+    <span class="kw">public</span> int $age;
+
+    #[PzIn([<span class="str">'person'</span>, <span class="str">'company'</span>])]
+    <span class="kw">public</span> string $type = <span class="str">'person'</span>;
+
+    #[PzRequiredIf(<span class="str">'type'</span>, <span class="str">'company'</span>), PzMatches(<span class="str">'/^\d{14}$/'</span>, message: <span class="str">'CNPJ de :field inválido'</span>)]
+    <span class="kw">public</span> ?string $ein;
+
+    #[PzMax(5), PzLength(max: 20)]   <span class="cmt">// PzMax(5) conta os itens do array; PzLength ignora (não é string)</span>
+    <span class="kw">public</span> array $tags = [];
+}</code></pre>
+
+      <h3>Revalidar depois de alterar</h3>
+<pre><code>$dto = SignupDto::from($dados);
+$dto->age = 5;
+$dto->assertValid();   <span class="cmt">// PzDtoValidationException: age must be at least 18</span></code></pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="mensagens">
+      <h2>Mensagens e idioma</h2>
+      <p>Por padrão as mensagens saem em inglês, no mesmo estilo do Laravel. Três níveis de personalização, do mais simples ao mais fino:</p>
+
+      <h3>1. Idioma global</h3>
+<pre><code><span class="cmt">// AppServiceProvider::boot()</span>
+PzDto::useLocale(<span class="str">'pt_BR'</span>);
+
+<span class="cmt">// agora:</span>
+<span class="cmt">// 'O campo name é obrigatório.'
+// 'O campo age deve ser no mínimo 18.'
+// 'O valor selecionado para status é inválido.'</span></code></pre>
+
+      <h3>1b. Idioma por requisição (middleware / <code>Accept-Language</code>)</h3>
+      <p>Passe um callable: ele é consultado <strong>na hora de montar cada mensagem</strong>, então segue o que o middleware definiu, sem depender de ordem de execução. Idioma desconhecido cai em inglês; <code>pt-BR</code>, <code>pt_br</code> e <code>pt</code> são aceitos.</p>
+<pre><code><span class="cmt">// AppServiceProvider::boot() — uma vez</span>
+PzDto::useLocale(<span class="kw">fn</span> () => app()->getLocale());
+
+<span class="cmt">// Middleware SetLocale — por requisição</span>
+<span class="kw">public function</span> handle(Request $request, Closure $next)
+{
+    app()->setLocale($request->getPreferredLanguage([<span class="str">'pt_BR'</span>, <span class="str">'en'</span>]) ?? <span class="str">'pt_BR'</span>);
+
+    <span class="kw">return</span> $next($request);
+}
+
+<span class="cmt">// Accept-Language: en     → 'The name field is required.'
+// Accept-Language: pt-BR  → 'O campo name é obrigatório.'</span></code></pre>
+      <div class="callout callout-info">
+        <div class="callout-title">Octane / workers</div>
+        <p style="margin:0">Como o estado é estático e o processo sobrevive entre requisições, a forma com callable é a segura: o idioma é lido na hora, nunca fica "preso" na requisição anterior.</p>
+      </div>
+
+      <h3>2. Sobrescrever textos por chave</h3>
+      <p>Vale por cima do idioma ativo. As chaves estão em <code>Puzl\PzDto\Support\Messages::LOCALES</code>: <code>required</code>, <code>integer</code>, <code>numeric</code>, <code>boolean</code>, <code>string</code>, <code>array</code>, <code>date</code>, <code>enum</code>, <code>in</code>, <code>email</code>, <code>url</code>, <code>uuid</code>, <code>regex</code>, <code>extension</code>, <code>length.min</code>, <code>length.max</code>, <code>min.numeric</code>, <code>min.string</code>, <code>min.array</code>, <code>max.*</code>, <code>required_if</code>, <code>required_with</code>…</p>
+<pre><code>PzDto::useMessages([
+    <span class="str">'required'</span>    => <span class="str">'Informe :field.'</span>,
+    <span class="str">'min.numeric'</span> => <span class="str">':field precisa ser pelo menos :min.'</span>,
+]);</code></pre>
+
+      <h3>3. Mensagem no atributo (+ tradutor)</h3>
+<pre><code>#[PzLength(min: 3, max: 5, message: <span class="str">'Código :field precisa de :min a :max caracteres'</span>)]
+<span class="kw">public</span> string $code;
+
+<span class="cmt">// Para passar o texto do atributo pelo trans() do Laravel:</span>
+PzDto::translateMessagesUsing(<span class="kw">fn</span> (string $key, array $replace) => trans($key, $replace));
+
+#[PzRequired(message: <span class="str">'validation.custom.code.required'</span>)]
+<span class="kw">public</span> string $code;</code></pre>
+
+      <div class="callout callout-info">
+        <div class="callout-title">O nome do campo aparece cru</div>
+        <p style="margin:0"><code>:field</code> é o nome da propriedade (<code>due_at</code>). Se quiser "data de vencimento", use <code>message:</code> na regra ou trate no handler da aplicação.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="regra-customizada">
+      <h2>Regra customizada</h2>
+
+      <h3>Regra simples</h3>
+      <p>Implemente <code>ValidationRule</code> numa classe marcada como atributo. Recebe o valor convertido, o bruto e o nome do campo; devolve a mensagem de erro ou <code>null</code>.</p>
+<pre><code><span class="kw">use</span> Puzl\PzDto\Contracts\ValidationRule;
+<span class="kw">use</span> Puzl\PzDto\Support\Messages;
+
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
+<span class="kw">final class</span> Cpf <span class="kw">implements</span> ValidationRule
+{
+    <span class="kw">public function</span> __construct(<span class="kw">public readonly</span> ?string $message = <span class="kw">null</span>) {}
+
+    <span class="kw">public function</span> validate(mixed $value, mixed $raw, string $field): ?string
+    {
+        <span class="kw">if</span> ($value === <span class="kw">null</span> || $value === <span class="str">''</span>) {
+            <span class="kw">return null</span>;   <span class="cmt">// deixe o PzRequired cuidar de presença</span>
+        }
+
+        <span class="kw">return</span> CpfValidator::isValid((string) $value)
+            ? <span class="kw">null</span>
+            : ($this->message ?? <span class="str">"O campo {$field} não é um CPF válido."</span>);
+    }
+}
+
+<span class="cmt">// uso</span>
+#[PzRequired, Cpf]
+<span class="kw">public</span> string $document;</code></pre>
+
+      <h3>Regra que olha outros campos</h3>
+      <p>Implemente <code>ContextualValidationRule</code>: mesma assinatura, mais o array com o input do mesmo nível.</p>
+<pre><code><span class="kw">use</span> Puzl\PzDto\Contracts\ContextualValidationRule;
+
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
+<span class="kw">final class</span> AfterField <span class="kw">implements</span> ContextualValidationRule
+{
+    <span class="kw">public function</span> __construct(<span class="kw">public readonly</span> string $other) {}
+
+    <span class="kw">public function</span> validate(mixed $value, mixed $raw, string $field, array $input): ?string
+    {
+        $start = $input[$this->other] ?? <span class="kw">null</span>;
+        <span class="kw">if</span> ($value === <span class="kw">null</span> || $start === <span class="kw">null</span>) {
+            <span class="kw">return null</span>;
+        }
+
+        <span class="kw">return</span> <span class="kw">new</span> \DateTimeImmutable((string) $value) > <span class="kw">new</span> \DateTimeImmutable((string) $start)
+            ? <span class="kw">null</span>
+            : <span class="str">"O campo {$field} deve ser posterior a {$this->other}."</span>;
+    }
+}
+
+<span class="kw">final class</span> PeriodDto <span class="kw">extends</span> PzDto
+{
+    #[PzRequired]
+    <span class="kw">public</span> string $starts_at;
+
+    #[PzRequired, AfterField(<span class="str">'starts_at'</span>)]
+    <span class="kw">public</span> string $ends_at;
+}</code></pre>
+      <p>No <code>from()</code>, <code>$input</code> é o array bruto recebido. No <code>assertValid()</code> e no <code>fill()</code>, é o estado atual do DTO (mais o que está chegando).</p>
+    </section>
+
     <footer>
-      <p>PzDto · <code>puzl/pzdto</code> · Documentação gerada para o repositório Puzl. Abra este arquivo no navegador: <code>docs/index.html</code></p>
+      PzDto · <code>puzl/pzdto</code> · documento em <code>docs/index.html</code> · repositório <a href="https://github.com/PuzlPlace/PzDto">PuzlPlace/PzDto</a>. Mudou o comportamento do pacote? Atualize este guia no mesmo PR.
     </footer>
 
   </main>
 </div>
 
 <script>
-  // Highlight active nav link on scroll
+  // ---------- Sumário: destaque da seção atual ----------
   const sections = document.querySelectorAll('section[id]');
   const navLinks = document.querySelectorAll('.sidebar a');
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        navLinks.forEach(link => {
-          link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
-        });
-      }
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id));
     });
   }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach((s) => spy.observe(s));
 
-  sections.forEach(s => observer.observe(s));
+  // ---------- Menu no celular ----------
+  const sidebar = document.querySelector('.sidebar');
+  const menuBtn = document.getElementById('menuBtn');
+  menuBtn.addEventListener('click', () => {
+    const open = sidebar.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', String(open));
+  });
+  navLinks.forEach((link) => link.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }));
 
-  // Close mobile menu on link click
-  navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.remove('open');
+  // ---------- Barra de progresso ----------
+  const bar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, { passive: true });
+
+  // ---------- Botão copiar nos blocos de código ----------
+  document.querySelectorAll('pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'copiar';
+    btn.className = 'copy-btn';
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(pre.querySelector('code').innerText); btn.textContent = 'copiado ✓'; }
+      catch { btn.textContent = 'falhou'; }
+      setTimeout(() => (btn.textContent = 'copiar'), 1500);
     });
+    pre.appendChild(btn);
   });
 </script>
 

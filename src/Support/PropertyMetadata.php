@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Puzl\PzDto\Support;
 
+use Puzl\PzDto\Contracts\ContextualValidationRule;
 use Puzl\PzDto\Contracts\ValidationRule;
 
 /**
@@ -14,9 +15,9 @@ use Puzl\PzDto\Contracts\ValidationRule;
 final class PropertyMetadata
 {
     /**
-     * @param class-string|null    $dtoClass  Destino de #[DtoAttribute]
-     * @param class-string|null    $enumClass Destino de #[EnumAttribute]
-     * @param array<ValidationRule> $rules
+     * @param class-string|null    $dtoClass  Destino de #[PzDtoAttribute]
+     * @param class-string|null    $enumClass Destino de #[PzEnumAttribute]
+     * @param array<ValidationRule|ContextualValidationRule> $rules
      */
     public function __construct(
         public readonly string $name,
@@ -29,6 +30,28 @@ final class PropertyMetadata
         public readonly ?string $enumClass,
         public readonly array $rules,
     ) {
+    }
+
+    /**
+     * Roda as regras da propriedade e devolve as mensagens de erro.
+     *
+     * @param array<string, mixed> $input Valores brutos do nível (para regras contextuais)
+     *
+     * @return array<int, string>
+     */
+    public function validate(mixed $value, mixed $raw, array $input): array
+    {
+        $messages = [];
+        foreach ($this->rules as $rule) {
+            $message = $rule instanceof ContextualValidationRule
+                ? $rule->validate($value, $raw, $this->name, $input)
+                : $rule->validate($value, $raw, $this->name);
+            if ($message !== null) {
+                $messages[] = $message;
+            }
+        }
+
+        return $messages;
     }
 
     public function allowsNull(): bool

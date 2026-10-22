@@ -7,7 +7,7 @@ namespace Puzl\PzDto\Tests\Features;
 require_once dirname(__DIR__).'/Fixtures/Legacy/FromArrayTrait.php';
 
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
 use Puzl\PzDto\PzDto;
 use Puzl\PzDto\Tests\Fixtures\Legacy\DtoAttribute as LegacyDtoAttribute;
@@ -148,7 +148,7 @@ class LegacyChildReportDto extends LegacyReportDto
 
 final class NewAddressDto extends PzDto
 {
-    #[\Puzl\PzDto\Attributes\Validation\Matches('/^\d{5}-\d{3}$/')]
+    #[\Puzl\PzDto\Attributes\Validation\PzMatches('/^\d{5}-\d{3}$/')]
     public string $zip;
 }
 
@@ -160,7 +160,7 @@ final class NewCustomerDto extends PzDto
 
 final class NewOrderDto extends PzDto
 {
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public LegacyCustomerDto $customer;
     #[DtoAttribute(LegacyItemDto::class)]
     public array $legacyItems = [];

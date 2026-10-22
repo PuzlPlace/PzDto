@@ -8,11 +8,11 @@ use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Support\Messages;
 
 /**
- * O valor recebido (antes do cast) precisa ser inteiro: `5` ou `"5"` passam;
- * `"12abc"`, `"1.5"` e `1.5` falham. Null é ignorado.
+ * O valor recebido (antes do cast) precisa representar booleano:
+ * `true`, `false`, `0`, `1`, `"0"`, `"1"`, `"true"`, `"false"`. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsInt implements ValidationRule
+final class PzIsBoolean implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -21,10 +21,10 @@ final class IsInt implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        if ($raw === null || is_int($raw) || (is_string($raw) && preg_match('/^\s*[+-]?\d+\s*$/', $raw) === 1)) {
+        if ($raw === null || is_bool($raw) || in_array($raw, [0, 1, '0', '1', 'true', 'false'], true)) {
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be an integer.', $field);
+        return Messages::make($this->message, 'boolean', $field);
     }
 }

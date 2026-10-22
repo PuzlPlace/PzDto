@@ -8,11 +8,10 @@ use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Support\Messages;
 
 /**
- * O valor recebido (antes do cast) precisa representar booleano:
- * `true`, `false`, `0`, `1`, `"0"`, `"1"`, `"true"`, `"false"`. Null é ignorado.
+ * O valor recebido (antes do cast) precisa ser string. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsBoolean implements ValidationRule
+final class PzIsString implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -21,10 +20,10 @@ final class IsBoolean implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        if ($raw === null || is_bool($raw) || in_array($raw, [0, 1, '0', '1', 'true', 'false'], true)) {
+        if ($raw === null || is_string($raw)) {
             return null;
         }
 
-        return Messages::make($this->message, 'The :field field must be true or false.', $field);
+        return Messages::make($this->message, 'string', $field);
     }
 }

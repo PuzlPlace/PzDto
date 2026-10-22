@@ -12,7 +12,7 @@ use Puzl\PzDto\Support\Messages;
  * (null, '', '0', 0, 0.0, false, []).
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class IsNotEmpty implements ValidationRule
+final class PzIsNotEmpty implements ValidationRule
 {
     public function __construct(
         public readonly ?string $message = null,
@@ -21,6 +21,6 @@ final class IsNotEmpty implements ValidationRule
 
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
-        return empty($raw) ? Messages::make($this->message, 'The :field field must not be empty.', $field) : null;
+        return empty($raw) ? Messages::make($this->message, 'not_empty', $field) : null;
     }
 }

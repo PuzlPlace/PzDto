@@ -9,10 +9,10 @@ use Puzl\PzDto\Support\Messages;
 use Puzl\PzDto\Support\Size;
 
 /**
- * Máximo: valor numérico, tamanho da string ou quantidade de itens do array. Null é ignorado.
+ * Mínimo: valor numérico, tamanho da string ou quantidade de itens do array. Null é ignorado.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Max implements ValidationRule
+final class PzMin implements ValidationRule
 {
     public function __construct(
         public readonly int|float $value,
@@ -23,15 +23,15 @@ final class Max implements ValidationRule
     public function validate(mixed $value, mixed $raw, string $field): ?string
     {
         $size = Size::of($value);
-        if ($size === null || $size <= $this->value) {
+        if ($size === null || $size >= $this->value) {
             return null;
         }
 
         return Messages::make(
             $this->message,
-            'The :field field must not be greater than :max'.Size::unit($value).'.',
+            'min.'.Size::kind($value),
             $field,
-            ['max' => $this->value],
+            ['min' => $this->value],
         );
     }
 }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Puzl\PzDto\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Puzl\PzDto\Attributes\DtoAttribute;
-use Puzl\PzDto\Attributes\EnumAttribute;
+use Puzl\PzDto\Attributes\PzDtoAttribute;
+use Puzl\PzDto\Attributes\PzEnumAttribute;
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\PzDto;
 
@@ -196,9 +196,9 @@ final class ProductDto extends PzDto
 {
     public string $name;
     public float $price;
-    #[EnumAttribute]
+    #[PzEnumAttribute]
     public ?ProductKind $kind;
-    #[DtoAttribute]
+    #[PzDtoAttribute]
     public ?SupplierDto $supplier;
     public ?\DateTime $created_at;
     protected string $internal = '';

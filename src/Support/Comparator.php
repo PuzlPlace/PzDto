@@ -28,7 +28,7 @@ final class Comparator
         }
 
         if (is_array($original) || is_array($current) || $original instanceof PzDto || $current instanceof PzDto) {
-            return self::normalize($original) !== self::normalize($current);
+            return Exporter::value($original) !== Exporter::value($current);
         }
 
         if (is_object($original) && is_object($current) && ! $original instanceof \UnitEnum) {
@@ -55,10 +55,5 @@ final class Comparator
         }
 
         return false;
-    }
-
-    private static function normalize(mixed $value): mixed
-    {
-        return json_decode(json_encode($value, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
     }
 }

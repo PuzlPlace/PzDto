@@ -9,15 +9,15 @@ namespace Puzl\PzDto\Attributes;
  * alterações ligado, como se chamasse ->trackChanges() logo depois.
  *
  * ```php
- * #[TrackChanges]
- * class FinanceUpdateDto extends PzDto { ... }
+ * #[PzTrackChanges]
+ * class ProductUpdateDto extends PzDto { ... }
  *
- * FinanceUpdateDto::from($dados)->isDirty(); // false, sem chamar trackChanges()
+ * ProductUpdateDto::from($dados)->isDirty(); // false, sem chamar trackChanges()
  * ```
  *
  * Não vale para `new` (o PzDto não intercepta construtor): use ->trackChanges().
  */
 #[\Attribute(\Attribute::TARGET_CLASS)]
-final class TrackChanges
+final class PzTrackChanges
 {
 }

@@ -13,7 +13,7 @@ use Puzl\PzDto\Support\Messages;
  * Null e string vazia são ignorados.
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class HasExtension implements ValidationRule
+final class PzHasExtension implements ValidationRule
 {
     /**
      * @param array<int, string> $allowed
@@ -33,7 +33,7 @@ final class HasExtension implements ValidationRule
         $extension = strtolower(pathinfo($value, PATHINFO_EXTENSION));
         if ($this->allowed === []) {
             return $extension === ''
-                ? Messages::make($this->message, 'The :field field must have a file extension.', $field)
+                ? Messages::make($this->message, 'extension.any', $field)
                 : null;
         }
 
@@ -47,7 +47,7 @@ final class HasExtension implements ValidationRule
 
         return Messages::make(
             $this->message,
-            'The :field field must have one of the following extensions: :values.',
+            'extension',
             $field,
             ['values' => implode(', ', array_map(static fn (string $item): string => '.'.$item, $allowed))],
         );
