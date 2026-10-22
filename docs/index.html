@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PzDto — DTOs por herança (extends PzDto) com cast automático, aninhamento de DTO/enum e validações por atributo.">
+  <title>PzDto — Guia do pacote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --accent-soft: #ccfbf1;
+      --code-bg: #1e293b;
+      --code-text: #e2e8f0;
+      --warn-bg: #fffbeb;
+      --warn-border: #f59e0b;
+      --danger-bg: #fef2f2;
+      --danger-border: #ef4444;
+      --success-bg: #ecfdf5;
+      --success-border: #10b981;
+      --info-bg: #eff6ff;
+      --info-border: #3b82f6;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 5rem;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 0;
+    }
+
+    .sidebar-brand {
+      padding: 0 1.25rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .sidebar-brand p {
+      margin: 0.25rem 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .nav-group {
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-group-title {
+      padding: 0.5rem 1.25rem 0.25rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 0.35rem 1.25rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .main {
+      max-width: 52rem;
+      padding: 2.5rem 3rem 4rem;
+    }
+
+    /* Hero */
+    .hero {
+      margin-bottom: 3rem;
+      padding: 2.5rem;
+      background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
+      border-radius: var(--radius);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h2 {
+      margin: 0 0 0.75rem;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      margin: 0;
+      font-size: 1.1rem;
+      opacity: 0.92;
+      max-width: 36rem;
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    .tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      background: rgba(255,255,255,0.2);
+      border-radius: 999px;
+    }
+
+    /* Typography */
+    section { margin-bottom: 3rem; }
+
+    h2 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent-soft);
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 1.75rem 0 0.75rem;
+      color: var(--text);
+    }
+
+    h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+    }
+
+    p { margin: 0 0 1rem; }
+
+    ul, ol {
+      margin: 0 0 1rem;
+      padding-left: 1.35rem;
+    }
+
+    li { margin-bottom: 0.35rem; }
+
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-hover); }
+
+    strong { font-weight: 600; }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card h4 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Callouts */
+    .callout {
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      margin: 1.25rem 0;
+      border-left: 4px solid;
+      font-size: 0.95rem;
+    }
+
+    .callout-title {
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      font-size: 0.9rem;
+    }
+
+    .callout-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+    .callout-danger { background: var(--danger-bg); border-color: var(--danger-border); }
+    .callout-success { background: var(--success-bg); border-color: var(--success-border); }
+    .callout-info { background: var(--info-bg); border-color: var(--info-border); }
+
+    /* Code */
+    pre {
+      margin: 1rem 0;
+      padding: 1.15rem 1.25rem;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      box-shadow: var(--shadow);
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88em;
+      background: #f1f5f9;
+      color: #0f766e;
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+
+    pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    .kw { color: #c084fc; }
+    .fn { color: #67e8f9; }
+    .str { color: #86efac; }
+    .cmt { color: #94a3b8; font-style: italic; }
+    .cls { color: #fcd34d; }
+    .var { color: #f9a8d4; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    th, td {
+      padding: 0.65rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    /* Compare columns */
+    .vs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .vs-box {
+      padding: 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .vs-box.yes { border-color: var(--success-border); }
+    .vs-box.no { border-color: var(--danger-border); }
+
+    .vs-box h4 { margin-top: 0; }
+
+    /* API method list */
+    .method {
+      margin: 1.5rem 0;
+      padding: 1rem 1.15rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .method-sig {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 500;
+      word-break: break-all;
+    }
+
+    .method-desc {
+      margin: 0.5rem 0 0;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* File tree */
+    .tree {
+      margin: 1rem 0;
+      padding: 1.15rem 1.25rem;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      box-shadow: var(--shadow);
+      white-space: pre;
+    }
+
+    /* Mobile */
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      bottom: 1.25rem;
+      right: 1.25rem;
+      z-index: 100;
+      width: 3rem;
+      height: 3rem;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        left: -100%;
+        z-index: 50;
+        width: var(--sidebar-w);
+        transition: left 0.25s;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.1);
+      }
+      .sidebar.open { left: 0; }
+      .main { padding: 1.5rem 1.25rem 5rem; max-width: none; }
+      .menu-toggle { display: flex; align-items: center; justify-content: center; }
+      .vs-grid { grid-template-columns: 1fr; }
+      .hero { padding: 1.5rem; }
+      .hero h2 { font-size: 1.5rem; }
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<button class="menu-toggle" type="button" aria-label="Abrir menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<div class="layout">
+  <nav class="sidebar" aria-label="Navegação">
+    <div class="sidebar-brand">
+      <h1>PzDto</h1>
+      <p>puzl/pzdto · PHP 8.1+</p>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Começar</div>
+      <a href="#intro">O que é</a>
+      <a href="#instalacao">Instalação</a>
+      <a href="#inicio-rapido">Início rápido</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Declaração</div>
+      <a href="#heranca">Herança</a>
+      <a href="#conversao">Conversão de tipos</a>
+      <a href="#aninhamento">DTOs e enums aninhados</a>
+      <a href="#entrada-saida">Entrada e saída</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Validação</div>
+      <a href="#validacoes">Regras disponíveis</a>
+      <a href="#erros">Erros</a>
+      <a href="#regra-customizada">Regra customizada</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Migração</div>
+      <a href="#migracao">Migrando da FromArrayTrait</a>
+      <a href="#diferencas">Diferenças de comportamento</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <header class="hero">
+      <h2>DTOs por herança, com cast e validação</h2>
+      <p>PzDto é a classe base dos DTOs da Puzl: <code>class FinanceCreateDto extends PzDto</code> e pronto — sem <code>use</code> de trait. Converte tipos automaticamente, aninha DTOs e enums com <code>#[DtoAttribute]</code>/<code>#[EnumAttribute]</code> e valida com atributos. É o sucessor da <code>FromArrayTrait</code>.</p>
+      <div class="hero-tags">
+        <span class="tag">extends PzDto</span>
+        <span class="tag">Cast automático</span>
+        <span class="tag">DtoAttribute / EnumAttribute</span>
+        <span class="tag">Validação por atributo</span>
+        <span class="tag">Convive com a FromArrayTrait</span>
+      </div>
+    </header>
+
+    <section id="intro">
+      <h2>O que é o PzDto?</h2>
+      <p>Uma classe abstrata que transforma qualquer classe PHP em DTO. Chame <code>Dto::from($dados)</code> com array, Model, stdClass, outro DTO ou JSON e receba a instância preenchida, com cada propriedade convertida para o tipo declarado.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h4>Herança</h4>
+          <p><code>X extends PzDto</code> ou <code>X extends BaseDto extends PzDto</code>: <code>from()</code> sempre devolve a classe chamada.</p>
+        </div>
+        <div class="card">
+          <h4>Mesma declaração</h4>
+          <p><code>#[DtoAttribute]</code> e <code>#[EnumAttribute]</code> funcionam como na trait — em qualquer ordem, junto com outros atributos.</p>
+        </div>
+        <div class="card">
+          <h4>Validação</h4>
+          <p><code>#[Required]</code>, <code>#[Length]</code>, <code>#[IsEmail]</code>… todos os erros juntos numa exceção.</p>
+        </div>
+        <div class="card">
+          <h4>Sem Laravel obrigatório</h4>
+          <p>Só PHP 8.1. Aceita Model/Collection por <code>toArray()</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="instalacao">
+      <h2>Instalação</h2>
+      <p>O repositório <code>PuzlPlace/PzDto</code> é <strong>público</strong>, mas o pacote <strong>não está no Packagist</strong> — é distribuído pelo próprio repositório Git. Adicione o repositório ao <code>composer.json</code> do projeto consumidor:</p>
+<pre><code><span class="kw">{</span>
+    <span class="str">"repositories"</span>: [
+        {
+            <span class="str">"type"</span>: <span class="str">"vcs"</span>,
+            <span class="str">"url"</span>: <span class="str">"https://github.com/PuzlPlace/PzDto.git"</span>
+        }
+    ]
+<span class="kw">}</span></code></pre>
+
+      <p>Em seguida, instale via Composer:</p>
+<pre><code>composer require puzl/pzdto:^1.0</code></pre>
+
+      <p>Cada release é uma tag semver (veja as <a href="https://github.com/PuzlPlace/PzDto/releases">Releases</a>). Use <code>^1.0</code> para receber correções e recursos novos sem nunca subir de major; evite <code>dev-production</code>, que segue o topo da branch sem versão.</p>
+
+      <h3>Requisitos</h3>
+      <table>
+        <thead>
+          <tr><th>Requisito</th><th>Obrigatório?</th><th>Notas</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>PHP ^8.1</td><td>Sim</td><td>Testado em 8.2 / 8.3</td></tr>
+          <tr><td>Laravel</td><td>Não</td><td>Funciona em qualquer versão; não há Service Provider</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warn">
+        <div class="callout-title">Habilitar o GitHub Pages</div>
+        Para que este tutorial fique acessível online, habilite o GitHub Pages do repositório em <code>Settings → Pages → Build and deployment → Source: GitHub Actions</code>. O workflow <code>.github/workflows/pages.yml</code> publica o conteúdo de <code>docs/</code> a cada push em <code>master</code>.
+      </div>
+    </section>
+
+    <section id="inicio-rapido">
+      <h2>Início rápido</h2>
+<pre><code><span class="kw">use</span> Puzl\PzDto\PzDto;
+<span class="kw">use</span> Puzl\PzDto\Attributes\DtoAttribute;
+<span class="kw">use</span> Puzl\PzDto\Attributes\EnumAttribute;
+<span class="kw">use</span> Puzl\PzDto\Attributes\Validation\{Required, Length, Min};
+
+<span class="kw">class</span> FinanceCreateDto <span class="kw">extends</span> PzDto
+{
+    #[Required, Length(max: 120)]
+    <span class="kw">public</span> string $description;
+
+    #[Min(0)]
+    <span class="kw">public</span> float $amount;
+
+    #[EnumAttribute]
+    <span class="kw">public</span> FinanceTypeEnum $type;
+
+    #[DtoAttribute(FinanceInstallmentDto::class)]
+    <span class="kw">public</span> array $installments = [];
+}
+
+$dto = FinanceCreateDto::from($request->validated());</code></pre>
+    </section>
+
+    <section id="heranca">
+      <h2>Herança</h2>
+      <p>Toda a lógica está na classe <code>PzDto</code>; não existe trait. Qualquer nível de herança funciona e <code>from()</code>/<code>create()</code> retornam <code>static</code>:</p>
+<pre><code><span class="kw">abstract class</span> BaseDto <span class="kw">extends</span> PzDto {}
+
+<span class="kw">class</span> FinanceCreateDto <span class="kw">extends</span> BaseDto { ... }
+
+FinanceCreateDto::from([...]); <span class="cmt">// instância de FinanceCreateDto</span></code></pre>
+      <ul>
+        <li>Propriedades do pai (inclusive <code>private</code>) e da filha são preenchidas; a filha pode redeclarar uma propriedade.</li>
+        <li><code>readonly</code>, <code>protected</code> e <code>private</code> são suportadas. Propriedades <code>static</code> são ignoradas.</li>
+        <li>O construtor da classe <strong>não</strong> é chamado.</li>
+        <li>Validações declaradas no pai valem para as filhas.</li>
+      </ul>
+    </section>
+
+    <section id="conversao">
+      <h2>Conversão de tipos</h2>
+      <table>
+        <thead>
+          <tr><th>Tipo</th><th>Aceita</th><th>Sem valor (não-nullable)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>int</code></td><td>int, float, bool, string numérica (<code>"12"</code>)</td><td><code>0</code></td></tr>
+          <tr><td><code>float</code></td><td>número, string numérica, <code>"1,5"</code></td><td><code>0.0</code></td></tr>
+          <tr><td><code>string</code></td><td>escalares, enum (value/name), Stringable, DateTime</td><td><code>''</code></td></tr>
+          <tr><td><code>bool</code></td><td><code>true/1/"1"/"true"/"on"/"yes"</code> → true; resto → false</td><td><code>false</code></td></tr>
+          <tr><td><code>array</code></td><td>array, objeto com <code>toArray()</code></td><td><code>[]</code></td></tr>
+          <tr><td><code>DateTime</code>, <code>DateTimeImmutable</code>, <code>Carbon</code></td><td>string, timestamp, outro DateTime</td><td>erro de validação</td></tr>
+          <tr><td>enum</td><td>case, value, name</td><td>erro de validação</td></tr>
+          <tr><td>DTO</td><td>array, objeto, JSON</td><td>DTO vazio (sem validar)</td></tr>
+          <tr><td>union (<code>bool|int</code>…)</td><td>mantém o valor se já é de um dos tipos; senão converte para o primeiro que aceitar</td><td>zero do primeiro tipo</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li>Chave <strong>ausente</strong> → default da propriedade; sem default, <code>null</code> (nullable) ou o "zero" da tabela.</li>
+        <li><code>null</code> <strong>explícito</strong> em nullable → <code>null</code>, mesmo com default.</li>
+        <li><code>''</code> em número, data, enum ou DTO conta como "sem valor".</li>
+        <li><code>0</code>, <code>0.0</code>, <code>false</code> e <code>[]</code> são preservados.</li>
+        <li>String não numérica em <code>int</code>/<code>float</code> (<code>"12abc"</code>) é erro de validação.</li>
+      </ul>
+    </section>
+
+    <section id="aninhamento">
+      <h2>DTOs e enums aninhados</h2>
+<pre><code><span class="kw">class</span> OrderDto <span class="kw">extends</span> PzDto
+{
+    #[DtoAttribute]                       <span class="cmt">// pelo tipo da propriedade</span>
+    <span class="kw">public</span> CustomerDto $customer;
+
+    #[DtoAttribute(ItemDto::class)]       <span class="cmt">// lista: classe obrigatória</span>
+    <span class="kw">public</span> array $items = [];
+
+    #[EnumAttribute]
+    <span class="kw">public</span> ?StatusEnum $status;
+
+    #[EnumAttribute(StatusEnum::class)]
+    <span class="kw">public</span> array $history = [];
+
+    <span class="kw">public</span> StatusEnum $kind = StatusEnum::OPEN; <span class="cmt">// enum/DTO pelo tipo também funciona sem atributo</span>
+}</code></pre>
+      <p>Os atributos podem vir em <strong>qualquer ordem</strong> e combinados com validações (<code>#[IsNotEmpty, EnumAttribute]</code>, <code>#[Max(10)] #[DtoAttribute(ItemDto::class)]</code>). Enum com valor que não existe gera erro — não cai mais no primeiro case.</p>
+      <p>A classe do <code>#[DtoAttribute]</code> pode ser um DTO legado com <code>FromArrayTrait</code>: basta ter <code>static from()</code>.</p>
+    </section>
+
+    <section id="entrada-saida">
+      <h2>Entrada e saída</h2>
+<pre><code>Dto::from([<span class="str">'a'</span> => 1]);
+Dto::from($model);                  <span class="cmt">// usa $model->toArray()</span>
+Dto::from((object) [<span class="str">'a'</span> => 1]);
+Dto::from($outroDto);               <span class="cmt">// propriedades públicas, preservando objetos</span>
+Dto::from(<span class="str">'{"a":1}'</span>);             <span class="cmt">// JSON inválido lança PzDtoException</span>
+Dto::from($dados, [<span class="str">'address'</span>]);    <span class="cmt">// mescla $dados['address'] na raiz</span>
+Dto::create([<span class="str">'a'</span> => 1]);
+
+$dto->toArray();                    <span class="cmt">// mesmo formato da trait (enum → value)</span>
+$dto->toJson();
+$dto->assertValid();                <span class="cmt">// revalida após alterar propriedades</span></code></pre>
+    </section>
+
+    <section id="validacoes">
+      <h2>Regras disponíveis</h2>
+      <p>Namespace <code>Puzl\PzDto\Attributes\Validation</code>. Todas aceitam <code>message:</code>. As regras rodam <strong>depois</strong> da conversão e ignoram <code>null</code> (exceto <code>Required</code> e <code>IsNotEmpty</code>).</p>
+      <table>
+        <thead>
+          <tr><th>Atributo</th><th>Valida</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>#[Required]</code></td><td>chave presente e não nula/vazia</td></tr>
+          <tr><td><code>#[IsNotEmpty]</code></td><td><code>empty()</code> do valor recebido</td></tr>
+          <tr><td><code>#[IsString]</code>, <code>#[IsInt]</code>, <code>#[IsFloat]</code>, <code>#[IsBoolean]</code></td><td>tipo do valor <strong>recebido</strong> (<code>"5"</code> passa em IsInt, <code>"12abc"</code> não)</td></tr>
+          <tr><td><code>#[Min(n)]</code>, <code>#[Max(n)]</code></td><td>número; tamanho da string; itens do array</td></tr>
+          <tr><td><code>#[Length(min:, max:)]</code></td><td>caracteres da string (multibyte)</td></tr>
+          <tr><td><code>#[Matches('/regex/')]</code></td><td>regex</td></tr>
+          <tr><td><code>#[IsEmail]</code>, <code>#[IsUrl]</code>, <code>#[IsUUID]</code></td><td>formatos</td></tr>
+          <tr><td><code>#[HasExtension(['pdf'])]</code></td><td>extensão de arquivo</td></tr>
+          <tr><td><code>#[IsDateString(IsDateStringFormat::DATE, min:, max:)]</code></td><td>data em string (DATE, DATETIME, ISO8601, FLEXIBLE)</td></tr>
+          <tr><td><code>#[In([...], strict: false)]</code></td><td>valor (ou itens do array) na lista; enum compara pelo value</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="erros">
+      <h2>Erros</h2>
+      <p>Conversões que falham e regras violadas são <strong>reunidas</strong> e lançadas numa única <code>PzDtoValidationException</code> (extends <code>InvalidArgumentException</code>):</p>
+<pre><code><span class="kw">try</span> {
+    OrderDto::from($dados);
+} <span class="kw">catch</span> (PzDtoValidationException $e) {
+    $e->errors();   <span class="cmt">// ['customer.name' => ['The name field is required.'], 'items.1.qty' => [...]]</span>
+    $e->dtoClass(); <span class="cmt">// OrderDto::class</span>
+}</code></pre>
+      <p>Placeholders nas mensagens: <code>:field</code>, <code>:min</code>, <code>:max</code>, <code>:values</code>. Para traduzir mensagens customizadas (ex.: chaves de <code>lang/</code>), registre no <code>AppServiceProvider</code>:</p>
+<pre><code>PzDto::translateMessagesUsing(fn (string $key, array $replace) => trans($key, $replace));</code></pre>
+      <p>Erros de <strong>declaração</strong> (ex.: <code>#[DtoAttribute]</code> em <code>array</code> sem classe) lançam <code>PzDtoException</code>.</p>
+    </section>
+
+    <section id="regra-customizada">
+      <h2>Regra customizada</h2>
+<pre><code>#[\Attribute(\Attribute::TARGET_PROPERTY)]
+<span class="kw">final class</span> Cpf <span class="kw">implements</span> \Puzl\PzDto\Contracts\ValidationRule
+{
+    <span class="kw">public function</span> validate(mixed $value, mixed $raw, string $field): ?string
+    {
+        <span class="kw">return</span> CpfValidator::isValid($value) ? <span class="kw">null</span> : <span class="str">"CPF inválido em $field"</span>;
+    }
+}</code></pre>
+    </section>
+
+    <section id="migracao">
+      <h2>Migrando da FromArrayTrait</h2>
+      <p>PzDto e <code>FromArrayTrait</code> <strong>convivem</strong> no mesmo projeto: a migração é gradual, DTO a DTO.</p>
+      <ol>
+        <li>Troque <code>extends BaseDto</code> + <code>use FromArrayTrait;</code> por <code>extends PzDto</code> (ou por uma base nova do projeto que estenda <code>PzDto</code>).</li>
+        <li>Troque os imports <code>App\Helpers\DtoAttribute</code>/<code>EnumAttribute</code> por <code>Puzl\PzDto\Attributes\...</code> (se esquecer, os antigos continuam reconhecidos pelo nome).</li>
+        <li>Revise as <a href="#diferencas">diferenças de comportamento</a> no DTO migrado.</li>
+      </ol>
+      <p>Aninhamento cruzado funciona nos dois sentidos: um PzDto pode ter <code>#[DtoAttribute(DtoLegado::class)]</code> e um DTO legado pode ter uma propriedade do tipo de um PzDto.</p>
+      <div class="callout callout-warn">
+        <div class="callout-title">BaseDto durante a transição</div>
+        Não faça <code>BaseDto extends PzDto</code> enquanto houver DTOs com <code>use FromArrayTrait</code> herdando dele — as assinaturas conflitam. Use uma base nova para os DTOs migrados e, quando o último legado sair, aponte <code>BaseDto</code> para <code>PzDto</code>.
+      </div>
+    </section>
+
+    <section id="diferencas">
+      <h2>Diferenças de comportamento</h2>
+      <table>
+        <thead>
+          <tr><th>Situação</th><th>FromArrayTrait</th><th>PzDto</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>?int</code> com <code>0</code> / <code>?array</code> com <code>[]</code></td><td><code>null</code></td><td><code>0</code> / <code>[]</code></td></tr>
+          <tr><td><code>?int $x = 5</code> com <code>null</code></td><td><code>5</code></td><td><code>null</code></td></tr>
+          <tr><td>Enum com valor inexistente</td><td>primeiro case</td><td>erro de validação</td></tr>
+          <tr><td>Filho sem <code>use FromArrayTrait</code></td><td>instancia o pai</td><td>instancia o filho</td></tr>
+          <tr><td>Union <code>bool|int</code> com <code>true</code></td><td>fatal</td><td><code>true</code></td></tr>
+          <tr><td><code>"12abc"</code> em <code>int</code></td><td><code>12</code></td><td>erro de validação</td></tr>
+          <tr><td><code>"1,5"</code> em <code>float</code></td><td><code>1.0</code></td><td><code>1.5</code></td></tr>
+          <tr><td>JSON inválido no <code>from()</code></td><td>DTO vazio</td><td><code>PzDtoException</code></td></tr>
+          <tr><td>Data ausente em não-nullable</td><td>ano -0001</td><td>erro de validação</td></tr>
+          <tr><td>Vários atributos na propriedade</td><td>só o primeiro</td><td>todos, em qualquer ordem</td></tr>
+          <tr><td><code>#[IsFloat]</code>/<code>#[IsBoolean]</code></td><td>checavam <code>is_int</code></td><td>checam o tipo certo</td></tr>
+          <tr><td>Validação × cast</td><td>antes do cast</td><td>depois do cast (regras de tipo olham o valor recebido)</td></tr>
+          <tr><td>Construtor do DTO</td><td>chamado</td><td>não chamado</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="faq">
+      <h2>Perguntas frequentes</h2>
+
+      <h3>Preciso registrar algum Service Provider?</h3>
+      <p>Não. O pacote não tem config nem comando; basta estender <code>PzDto</code>.</p>
+
+      <h3>É lento por usar reflexão?</h3>
+      <p>A reflexão de cada classe (propriedades, tipos, atributos e regras) é lida uma vez e fica em cache estático — <code>from()</code> em listas grandes não refaz esse trabalho.</p>
+
+      <h3>Como rodo os testes do pacote?</h3>
+<pre><code>composer test</code></pre>
+      <p>Duas suítes: <code>Unit</code> (<code>tests/Unit</code>) e <code>Features</code> (<code>tests/Features</code> — convivência com a <code>FromArrayTrait</code> e reprodução dos bugs antigos).</p>
+
+      <h3>Onde está o código-fonte?</h3>
+      <p>
+        <code>src/PzDto.php</code> — classe base (from, create, toArray, toJson, assertValid)<br>
+        <code>src/Attributes/*</code> — DtoAttribute, EnumAttribute e regras em <code>Validation/</code><br>
+        <code>src/Support/Caster.php</code> — conversão de tipos · <code>src/Support/ClassMetadata.php</code> — cache de reflexão<br>
+        <code>src/Exceptions/*</code> — PzDtoException, PzDtoValidationException
+      </p>
+    </section>
+
+    <footer>
+      <p>PzDto · <code>puzl/pzdto</code> · Documentação gerada para o repositório Puzl. Abra este arquivo no navegador: <code>docs/index.html</code></p>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+
+  // Close mobile menu on link click
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      document.querySelector('.sidebar').classList.remove('open');
+    });
+  });
+</script>
+
+</body>
+</html>

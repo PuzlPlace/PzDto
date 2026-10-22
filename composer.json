@@ -1,0 +1,31 @@
+{
+    "name": "puzl/pzdto",
+    "description": "DTO por herança (extends PzDto) com cast automático, aninhamento de DTO/enum e validações por atributo — sucessor da FromArrayTrait.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Puzl\\PzDto\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Puzl\\PzDto\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit -c phpunit.xml.dist",
+        "test:coverage": "phpunit -c phpunit.xml.dist --coverage-text"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
