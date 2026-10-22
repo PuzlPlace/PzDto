@@ -6,9 +6,11 @@ namespace Puzl\PzDto;
 
 use Puzl\PzDto\Exceptions\PzDtoException;
 use Puzl\PzDto\Exceptions\PzDtoValidationException;
+use Puzl\PzDto\Support\Bits;
 use Puzl\PzDto\Support\Caster;
 use Puzl\PzDto\Support\CastError;
 use Puzl\PzDto\Support\ClassMetadata;
+use Puzl\PzDto\Support\Comparator;
 use Puzl\PzDto\Support\Messages;
 
 /**
@@ -31,6 +33,18 @@ use Puzl\PzDto\Support\Messages;
  */
 abstract class PzDto implements \JsonSerializable
 {
+    /** Campos cuja chave veio no from()/create() — bit por propriedade. */
+    private int|string $pzProvided = 0;
+
+    /**
+     * Valores públicos guardados por trackChanges()/syncOriginal(), na ordem de
+     * ClassMetadata::publicNames. null = rastreamento desligado (padrão: custa
+     * memória e tempo em listas grandes, por isso é opt-in).
+     *
+     * @var array<int, mixed>|null
+     */
+    private ?array $pzOriginal = null;
+
     /**
      * Carregar dados através de array | Model | stdClass | DTO | string JSON.
      * Estrutura dos dados precisa ser compatível com a classe.
@@ -93,10 +107,18 @@ abstract class PzDto implements \JsonSerializable
 
         $instance = $metadata->reflection->newInstanceWithoutConstructor();
         $errors = [];
+        $bitsAsInt = $metadata->bitsAsInt;
+        $provided = $bitsAsInt ? 0 : Bits::empty(count($metadata->properties));
+        $index = -1;
 
         foreach ($metadata->properties as $name => $property) {
+            $index++;
             $present = array_key_exists($name, $values);
             $raw = $present ? $values[$name] : null;
+            if ($present) {
+                // Caminho comum (até 63 propriedades) inline: é o laço mais quente do pacote.
+                $provided = $bitsAsInt ? $provided | (1 << $index) : Bits::set($provided, $index);
+            }
 
             try {
                 $value = Caster::cast($property, $raw, $present);
@@ -127,6 +149,8 @@ abstract class PzDto implements \JsonSerializable
         if ($validate && $errors !== []) {
             throw new PzDtoValidationException($errors, static::class);
         }
+
+        $instance->pzProvided = $provided;
 
         return $instance;
     }
@@ -192,12 +216,248 @@ abstract class PzDto implements \JsonSerializable
         $data = [];
 
         foreach ($metadata->publicNames as $name) {
-            $property = $metadata->properties[$name];
-            [$initialized, $value] = $metadata->read($this, $property);
-            $data[$name] = $initialized ? $value : Caster::absent($property);
+            $data[$name] = $this->currentValue($metadata, $name);
         }
 
         return $data;
+    }
+
+    /**
+     * A chave de todos os campos informados veio no from()/create()?
+     * Separa "não mandou" de "mandou null" (ex.: update parcial / PATCH).
+     */
+    public function wasProvided(string ...$fields): bool
+    {
+        $metadata = ClassMetadata::for(static::class);
+
+        foreach ($fields as $field) {
+            if (! isset($metadata->indexes[$field])) {
+                throw new PzDtoException(sprintf('%s has no property "%s".', static::class, $field));
+            }
+            if (! Bits::has($this->pzProvided, $metadata->indexes[$field])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Nomes dos campos cuja chave veio no from()/create().
+     *
+     * @return array<int, string>
+     */
+    public function provided(): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+
+        return array_values(array_filter(
+            array_keys($metadata->properties),
+            fn (string $name): bool => Bits::has($this->pzProvided, $metadata->indexes[$name]),
+        ));
+    }
+
+    /**
+     * toArray() só com as propriedades públicas que vieram na entrada.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArrayProvided(): array
+    {
+        return $this->serialize(array_values(array_intersect(
+            ClassMetadata::for(static::class)->publicNames,
+            $this->provided(),
+        )));
+    }
+
+    /**
+     * toArray() só com os campos informados.
+     *
+     * @return array<string, mixed>
+     */
+    public function only(string ...$fields): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+        array_walk($fields, fn (string $field) => $metadata->assertPublic($field));
+
+        return $this->serialize(array_values(array_intersect($metadata->publicNames, $fields)));
+    }
+
+    /**
+     * toArray() sem os campos informados.
+     *
+     * @return array<string, mixed>
+     */
+    public function except(string ...$fields): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+        array_walk($fields, fn (string $field) => $metadata->assertPublic($field));
+
+        return $this->serialize(array_values(array_diff($metadata->publicNames, $fields)));
+    }
+
+    /**
+     * Liga o rastreamento de alterações: o estado atual vira o original (inclusive
+     * nos DTOs aninhados). Necessário antes de isDirty()/getDirty()/getOriginal().
+     *
+     * ```php
+     * $dto = FinanceUpdateDto::from($dados)->trackChanges();
+     * ```
+     */
+    public function trackChanges(): static
+    {
+        return $this->syncOriginal();
+    }
+
+    public function isTrackingChanges(): bool
+    {
+        return $this->pzOriginal !== null;
+    }
+
+    /**
+     * Algum campo público (ou algum dos informados) mudou desde trackChanges()/syncOriginal()?
+     * DTOs aninhados contam: se um filho mudou, o campo do pai está sujo.
+     *
+     * @throws PzDtoException se o rastreamento não foi ligado com trackChanges()
+     */
+    public function isDirty(string ...$fields): bool
+    {
+        if ($fields === []) {
+            return $this->getDirty() !== [];
+        }
+
+        $this->assertTracking();
+        $metadata = ClassMetadata::for(static::class);
+        foreach ($fields as $field) {
+            $metadata->assertPublic($field);
+            if ($this->fieldChanged($metadata, $field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isClean(string ...$fields): bool
+    {
+        return ! $this->isDirty(...$fields);
+    }
+
+    /**
+     * Campos públicos alterados, com o valor atual.
+     *
+     * @return array<string, mixed>
+     */
+    public function getDirty(): array
+    {
+        $this->assertTracking();
+        $metadata = ClassMetadata::for(static::class);
+        $dirty = [];
+
+        foreach ($metadata->publicNames as $name) {
+            if ($this->fieldChanged($metadata, $name)) {
+                $dirty[$name] = $this->currentValue($metadata, $name);
+            }
+        }
+
+        return $dirty;
+    }
+
+    /**
+     * Valor original de um campo público, ou todos (`[campo => valor]`).
+     */
+    public function getOriginal(?string $field = null): mixed
+    {
+        $this->assertTracking();
+        $metadata = ClassMetadata::for(static::class);
+
+        if ($field !== null) {
+            $metadata->assertPublic($field);
+
+            return $this->originalValue($metadata, $field);
+        }
+
+        $original = [];
+        foreach ($metadata->publicNames as $name) {
+            $original[$name] = $this->originalValue($metadata, $name);
+        }
+
+        return $original;
+    }
+
+    /**
+     * O estado atual vira o original (inclusive nos DTOs aninhados). Liga o
+     * rastreamento se ainda não estava ligado.
+     */
+    public function syncOriginal(): static
+    {
+        $metadata = ClassMetadata::for(static::class);
+        $original = [];
+
+        foreach ($metadata->publicNames as $name) {
+            $value = $this->currentValue($metadata, $name);
+            self::syncNested($value);
+            $original[] = $value;
+        }
+        $this->pzOriginal = $original;
+
+        return $this;
+    }
+
+    private function fieldChanged(ClassMetadata $metadata, string $name): bool
+    {
+        return Comparator::changed($this->originalValue($metadata, $name), $this->currentValue($metadata, $name));
+    }
+
+    private function originalValue(ClassMetadata $metadata, string $name): mixed
+    {
+        return $this->pzOriginal[$metadata->publicIndexes[$name]];
+    }
+
+    private function assertTracking(): void
+    {
+        if ($this->pzOriginal === null) {
+            throw new PzDtoException(sprintf(
+                'Change tracking is off for %s: call ->trackChanges() first (e.g. %s::from($data)->trackChanges()).',
+                static::class,
+                substr((string) strrchr('\\'.static::class, '\\'), 1),
+            ));
+        }
+    }
+
+    /**
+     * Valor atual; campo não inicializado vale o mesmo que no toArray().
+     */
+    private function currentValue(ClassMetadata $metadata, string $name): mixed
+    {
+        [$initialized, $value] = $metadata->read($this, $metadata->properties[$name]);
+
+        return $initialized ? $value : Caster::absent($metadata->properties[$name]);
+    }
+
+    private static function syncNested(mixed $value): void
+    {
+        if ($value instanceof self) {
+            $value->syncOriginal();
+        } elseif (is_array($value)) {
+            array_walk($value, static fn (mixed $item) => self::syncNested($item));
+        }
+    }
+
+    /**
+     * @param array<int, string> $names
+     *
+     * @return array<string, mixed>
+     */
+    private function serialize(array $names): array
+    {
+        $metadata = ClassMetadata::for(static::class);
+        $data = [];
+        foreach ($names as $name) {
+            $data[$name] = $this->currentValue($metadata, $name);
+        }
+
+        return json_decode(json_encode($data, JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
     }
 
     /**

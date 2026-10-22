@@ -96,8 +96,8 @@ final class InputAndSerializationTest extends TestCase
     {
         $dto = ProductDto::from(['name' => 'Cal', 'price' => 10, 'kind' => 'box', 'created_at' => '2026-10-22 10:00:00']);
 
-        self::assertEquals($dto, ProductDto::from($dto->toArray()));
-        self::assertEquals($dto, ProductDto::from($dto->toJson()));
+        self::assertSame($dto->toArray(), ProductDto::from($dto->toArray())->toArray());
+        self::assertSame($dto->toArray(), ProductDto::from($dto->toJson())->toArray());
     }
 
     public function test_to_array_de_new_parcial_traz_todos_os_campos_como_o_create(): void

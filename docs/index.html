@@ -439,6 +439,7 @@
       <a href="#conversao">Conversão de tipos</a>
       <a href="#aninhamento">DTOs e enums aninhados</a>
       <a href="#entrada-saida">Entrada e saída</a>
+      <a href="#rastreamento">Rastreamento (dirty)</a>
     </div>
 
     <div class="nav-group">
@@ -649,6 +650,51 @@ $dto->assertValid();                <span class="cmt">// revalida após alterar 
 $dto->description = <span class="str">'Aluguel'</span>;
 $dto->toArray(); <span class="cmt">// ['description' => 'Aluguel', 'amount' => 0.0, 'discount' => null, ...]</span></code></pre>
       <p>Atribuição manual não converte nem valida; use <code>assertValid()</code> ou prefira <code>Dto::create([...])</code>.</p>
+    </section>
+
+    <section id="rastreamento">
+      <h2>Rastreamento (dirty)</h2>
+      <p>Inspirado no <code>isDirty()</code> do Eloquent, em três grupos.</p>
+
+      <h3>O que veio na entrada (sempre ligado)</h3>
+      <p>Separa "não mandou" de "mandou <code>null</code>" — ideal para update parcial (PATCH):</p>
+<pre><code>$dto = FinanceUpdateDto::from([<span class="str">'description'</span> => <span class="str">'Aluguel'</span>, <span class="str">'discount'</span> => <span class="kw">null</span>]);
+
+$dto->wasProvided(<span class="str">'discount'</span>);     <span class="cmt">// true  (veio null)</span>
+$dto->wasProvided(<span class="str">'amount'</span>);       <span class="cmt">// false (não veio)</span>
+$dto->provided();                 <span class="cmt">// ['description', 'discount']</span>
+$dto->toArrayProvided();          <span class="cmt">// ['description' => 'Aluguel', 'discount' => null]</span>
+
+$repository->update($id, $dto->toArrayProvided()); <span class="cmt">// não sobrescreve o resto</span></code></pre>
+
+      <h3>Recortes</h3>
+<pre><code>$dto->only(<span class="str">'description'</span>, <span class="str">'amount'</span>);
+$dto->except(<span class="str">'internal_notes'</span>);   <span class="cmt">// nome inexistente lança PzDtoException</span></code></pre>
+
+      <h3>O que mudou (opt-in com trackChanges)</h3>
+<pre><code>$dto = FinanceUpdateDto::from($dados)->trackChanges();
+
+$dto->amount = <span class="fn">15</span>;
+$dto->isDirty();                  <span class="cmt">// true</span>
+$dto->isDirty(<span class="str">'description'</span>);     <span class="cmt">// false</span>
+$dto->isClean(<span class="str">'description'</span>);     <span class="cmt">// true</span>
+$dto->getDirty();                 <span class="cmt">// ['amount' => 15.0]</span>
+$dto->getOriginal(<span class="str">'amount'</span>);      <span class="cmt">// 10.0</span>
+$dto->syncOriginal();             <span class="cmt">// estado atual vira o original</span></code></pre>
+      <ul>
+        <li>DTO aninhado alterado (<code>$dto->address->city = 'RJ'</code>) suja o campo do pai, inclusive em listas.</li>
+        <li>DTO aninhado trocado por outra instância é comparado pelo conteúdo; enums por case; datas pelo instante e fuso.</li>
+        <li>Voltar ao valor original deixa o campo limpo.</li>
+        <li>Sem <code>trackChanges()</code>, <code>isDirty()</code>/<code>getDirty()</code>/<code>getOriginal()</code> lançam <code>PzDtoException</code>.</li>
+      </ul>
+      <div class="callout callout-warn">
+        <div class="callout-title">Por que opt-in?</div>
+        Guardar o original de cada instância praticamente dobra a memória de listas grandes (benchmark: 10 mil DTOs com 30 campos e aninhados, 17,5 → 32,9 MB). O <code>provided</code> custa ~4% no <code>from()</code> e fica sempre ligado. Rode <code>composer bench</code> para medir.
+      </div>
+      <div class="callout callout-info">
+        <div class="callout-title">DateTime mutável</div>
+        A cópia do original é rasa: <code>$dto->date->modify('+1 day')</code> em <code>DateTime</code> mutável não é detectado. Use <code>DateTimeImmutable</code> (ou atribua uma nova instância).
+      </div>
     </section>
 
     <section id="validacoes">

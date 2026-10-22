@@ -21,7 +21,8 @@
     },
     "scripts": {
         "test": "phpunit -c phpunit.xml.dist",
-        "test:coverage": "phpunit -c phpunit.xml.dist --coverage-text"
+        "test:coverage": "phpunit -c phpunit.xml.dist --coverage-text",
+        "bench": "php benchmarks/from.php"
     },
     "config": {
         "sort-packages": true

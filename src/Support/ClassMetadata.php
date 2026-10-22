@@ -6,6 +6,7 @@ namespace Puzl\PzDto\Support;
 
 use Puzl\PzDto\Contracts\ValidationRule;
 use Puzl\PzDto\Exceptions\PzDtoException;
+use Puzl\PzDto\PzDto;
 
 /**
  * Cache de reflexão por classe: propriedades, atributos e o meio de escrevê-las.
@@ -34,6 +35,31 @@ final class ClassMetadata
         public readonly array $properties,
         public readonly array $publicNames,
     ) {
+        $this->indexes = array_flip(array_keys($properties));
+        $this->bitsAsInt = Bits::fitsInInt(count($properties));
+        $this->publicIndexes = array_flip($publicNames);
+    }
+
+    /** @var array<string, \ReflectionProperty> */
+    private array $reflections = [];
+
+    /** @var array<string, int> Posição de cada propriedade (bit em "provided") */
+    public readonly array $indexes;
+
+    /** Bits de "provided" cabem num int (até 63 propriedades)? */
+    public readonly bool $bitsAsInt;
+
+    /** @var array<string, int> Posição de cada pública (índice no snapshot original) */
+    public readonly array $publicIndexes;
+
+    /**
+     * @throws PzDtoException quando o nome não é uma propriedade pública
+     */
+    public function assertPublic(string $name): void
+    {
+        if (! isset($this->publicIndexes[$name])) {
+            throw new PzDtoException(sprintf('%s has no public property "%s".', $this->reflection->getName(), $name));
+        }
     }
 
     /**
@@ -62,7 +88,7 @@ final class ClassMetadata
      */
     public function read(object $instance, PropertyMetadata $property): array
     {
-        $reflection = new \ReflectionProperty($property->declaringClass, $property->name);
+        $reflection = $this->reflections[$property->name] ??= new \ReflectionProperty($property->declaringClass, $property->name);
         if (! $reflection->isInitialized($instance)) {
             return [false, null];
         }
@@ -78,7 +104,8 @@ final class ClassMetadata
         $reflection = new \ReflectionClass($class);
         $properties = [];
 
-        for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
+        // O estado interno do próprio PzDto (rastreamento) não é campo de DTO.
+        for ($current = $reflection; $current !== false && $current->getName() !== PzDto::class; $current = $current->getParentClass()) {
             foreach ($current->getProperties() as $property) {
                 // Filha vence: propriedade redeclarada já foi lida na volta anterior.
                 if ($property->isStatic() || isset($properties[$property->getName()])) {
@@ -95,7 +122,7 @@ final class ClassMetadata
         // na posição em que apareceu primeiro.
         $publicNames = [];
         $chain = [];
-        for ($current = $reflection; $current !== false; $current = $current->getParentClass()) {
+        for ($current = $reflection; $current !== false && $current->getName() !== PzDto::class; $current = $current->getParentClass()) {
             array_unshift($chain, $current);
         }
         foreach ($chain as $current) {

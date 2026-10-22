@@ -121,6 +121,14 @@ $dto->toArray();
   públicas. Campo nunca preenchido (ex.: `new` + atribuição parcial) sai com o que o
   `create()` daria sem a chave: default; `null` se nullable; senão o zero do tipo
   (`0`, `0.0`, `''`, `false`, `[]`, DTO vazio); enum/data sem default → `null`.
+- Rastreamento, no estilo do `isDirty()` do Eloquent:
+  - `wasProvided('campo')`, `provided()`, `toArrayProvided()` — o que veio na entrada
+    (separa "não mandou" de "mandou null"; ideal para update parcial). Sempre ligado.
+  - `only(...)`, `except(...)` — `toArray()` parcial.
+  - `trackChanges()` liga o dirty (opt-in): `isDirty(...)`, `isClean(...)`, `getDirty()`,
+    `getOriginal(...)`, `syncOriginal()`. DTO aninhado alterado suja o pai.
+    `DateTime` mutável alterado no lugar (`->modify()`) não é detectado — prefira
+    `DateTimeImmutable`.
 - Erros de conversão e de validação de **todos** os campos vêm juntos numa
   `PzDtoValidationException` (`->errors()` → `['items.1.qty' => ['...']]`).
 - Regras: `Required`, `IsNotEmpty`, `IsString`, `IsInt`, `IsFloat`, `IsBoolean`, `Min`,
@@ -169,6 +177,24 @@ A suíte de testes usa **PHPUnit puro**, dividida em duas suítes:
 - `Unit` — `tests/Unit` (conversão, herança, aninhamento, entrada/saída, regras, docs)
 - `Features` — `tests/Features` (convivência com uma cópia fiel da `FromArrayTrait`
   em `tests/Fixtures/Legacy` e reprodução dos bugs antigos)
+
+### Benchmark
+
+```bash
+composer bench
+```
+
+10 mil DTOs com 30 campos, um DTO aninhado e uma lista de 3 itens. Referência
+(PHP 8.3), comparando com a versão sem rastreamento:
+
+| Cenário | Tempo | Memória |
+|---------|-------|---------|
+| `from()` sem rastreamento | ~169 ms | 15,7 MB |
+| `from()` com `provided` (sempre ligado) | ~176 ms (+4%) | 17,5 MB |
+| `trackChanges()` em todos | +~110 ms | 32,9 MB |
+| `isDirty()` em todos | ~120 ms | — |
+
+Por isso o dirty é opt-in: listagens grandes não pagam por ele.
 
 ---
 
